@@ -82,3 +82,20 @@
 
 /* V012 PWA Onboarding: mobile first, no knowledge included in publicly deployable shell. */
 .pwa-onboard[hidden]{display:none!important}.pwa-onboard{position:fixed;inset:0;z-index:2000;background:#f3f6f8;display:flex;align-items:center;justify-content:center;padding:18px;overflow-y:auto}.pwa-card{width:min(570px,100%);background:white;box-shadow:0 18px 70px rgba(13,35,51,.18);border:1px solid #dce5ea;border-radius:20px;padding:clamp(20px,5vw,34px);color:#172a3a}.pwa-card h1{font-size:clamp(21px,5vw,29px);line-height:1.2;margin:9px 0}.pwa-card p{line-height:1.65;color:#405666}.pwa-appmark{width:64px;height:64px;border-radius:16px;background:#103649;color:white;display:grid;place-items:center;font-size:30px;font-weight:800}.pwa-main-btn{border:0;background:#087e86;color:white;min-height:52px;border-radius:12px;padding:12px 20px;font-weight:700;width:100%;font-size:15px}.pwa-main-btn:focus-visible{outline:3px solid #40b9b9}.pwa-warn{border:1px solid #e3ce9f;background:#fff9e8;border-radius:10px;padding:10px 12px;font-size:12px;color:#6f541f}.pwa-card small{color:#637889}.pwa-menu-note{font-size:11px;color:#a9c8c9;display:block;margin:5px 0}.pwa-sec-btn{width:100%;padding:8px 11px;text-align:left;background:#204253;color:white;border:1px solid #496375;border-radius:7px;margin-top:5px}#pwaInstall[hidden]{display:none!important}
+
+
+/* V023: mobile-first menus and process cards. Existing FAQ/graph layout retained. */
+.nav{overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:thin}
+.nav-btn{flex-shrink:0}
+.ext-article .ext-ref{display:block;width:100%;text-align:left;border:1px solid #cfdee5;border-radius:9px;background:#f5fafc;color:#1d5364;padding:11px 12px;margin:7px 0;line-height:1.35;cursor:pointer;min-height:44px}
+.ext-article .ext-ref:hover,.ext-article .ext-ref:focus-visible{background:#eaf4f8;outline:2px solid #569aaa;outline-offset:1px}
+.ext-article .ext-code{display:block;white-space:pre-wrap;overflow-wrap:anywhere;padding:12px;background:#f5f7f9;border:1px solid #dce5e9;border-radius:8px}
+.ext-article .ext-proof{display:flex;flex-direction:column;gap:3px;background:#f6f8fa;padding:10px;border-radius:8px;margin:7px 0;overflow-wrap:anywhere}
+.ext-article .ext-proof small,.ext-article .ext-muted{font-size:12px;color:#697983}
+.ext-article .ext-steps{padding-left:26px;display:grid;gap:18px}
+.ext-article .ext-steps>li{border-bottom:1px solid #e2ebf0;padding-bottom:14px}
+.ext-article .ext-steps h3{font-size:15px;margin:0 0 8px}
+.ext-article .ext-links{display:grid;gap:3px}
+.ext-view #menuFilters{padding:10px 0}
+.ext-view .aside-card code{overflow-wrap:anywhere}
+@media(max-width:719px){.nav{gap:0;padding:2px 4px}.nav-btn{min-width:72px;padding:7px 10px}.nav-btn .nav-icon{font-size:18px}.ext-article{padding-bottom:72px}.ext-article .ext-ref{font-size:14px}}

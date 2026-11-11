@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "PMI Wissensnavigator – FAQ & Annotationen",
+  "name": "PMI Wissensnavigator – FAQ, Menüs & Prozesse",
   "short_name": "PMI Wissen",
-  "description": "Offlinefähiger FAQ- und Annotationsviewer mit lokal gespeicherten Wissensdaten.",
+  "description": "Mobile Wissensnavigation: lokal importierte FAQs, Graphbeziehungen, Menüaktionen und Teilprozesse.",
   "lang": "de",
   "dir": "ltr",
   "start_url": "./",
