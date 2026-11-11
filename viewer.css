@@ -99,3 +99,42 @@
 .ext-view #menuFilters{padding:10px 0}
 .ext-view .aside-card code{overflow-wrap:anywhere}
 @media(max-width:719px){.nav{gap:0;padding:2px 4px}.nav-btn{min-width:72px;padding:7px 10px}.nav-btn .nav-icon{font-size:18px}.ext-article{padding-bottom:72px}.ext-article .ext-ref{font-size:14px}}
+
+
+/* V024 – Navigation in jeder Ausrichtung erreichbar; keine Desktop-Toolbar-Kollision. */
+.nav-wrap{display:contents}
+.nav-scroll{display:none}
+.top{position:relative;z-index:100;min-width:0}
+.brand{flex:0 1 auto;min-width:0}
+.utility-menu{flex:0 0 auto;margin-left:auto;z-index:105}
+.utility-menu>summary,.utility-menu>summary:not([hidden]){display:flex!important;align-items:center;justify-content:center;min-height:44px;padding:8px 14px;gap:6px;cursor:pointer;list-style:none;background:#244454;color:#fff;border:1px solid #527181;border-radius:10px;font-weight:700}
+.utility-menu>.top-actions{display:none!important;position:absolute;z-index:110;top:calc(100% + 8px);right:0;width:min(335px,calc(100vw - 20px));max-height:min(78dvh,620px);overflow-y:auto;overscroll-behavior:contain;box-shadow:0 18px 50px rgba(8,36,51,.25);border:1px solid #d4e3e8;border-radius:12px;padding:10px;background:#fff;flex-direction:column;align-items:stretch;gap:6px;flex-wrap:nowrap}
+.utility-menu[open]>.top-actions{display:flex!important}
+.utility-menu .btn.darker{background:#f4f9fa;color:#173b4a;border-color:#d4e3e8;text-align:left;white-space:normal;min-height:42px}
+.utility-menu .pwa-menu-note{color:#566d79;padding:7px 3px}
+.utility-menu .pwa-sec-btn{color:#244454;background:#eff6f8;border-color:#d3e2e8}
+.utility-menu #pwaClearLocal{color:#813b3e;background:#fff3f2}
+@media(min-width:720px){.utility-menu>.top-actions{display:none!important}.utility-menu>summary{display:flex!important}.top{gap:12px}.nav{max-width:100%;scrollbar-width:thin}}
+@media(max-width:719px){
+ .nav-wrap{order:3;display:flex;flex:0 0 auto;align-items:stretch;width:100%;height:calc(65px + env(safe-area-inset-bottom,0px));background:#fff;min-width:0;border-top:1px solid #dde7eb}
+ .nav{order:0;display:flex;flex:1 1 auto;min-width:0;width:auto;height:100%;padding:0 2px env(safe-area-inset-bottom,0px);gap:0;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch;touch-action:pan-x;scroll-snap-type:x proximity;box-shadow:none;border:0}
+ .nav::-webkit-scrollbar{display:none}
+ .nav-btn{flex:0 0 84px;min-width:84px;width:84px;max-width:84px;scroll-snap-align:nearest;padding:5px 2px;min-height:60px}
+ .nav-scroll{display:flex;align-items:center;justify-content:center;flex:0 0 25px;width:25px;color:#286574;background:#eef6f7;font-size:25px;border:0;border-radius:0;padding:0;z-index:3}
+ .nav-scroll:disabled{opacity:.28}
+ .nav-next{border-left:1px solid #dce6ea}.nav-prev{border-right:1px solid #dce6ea}
+ .nav .spacer,.nav .counter{display:none}
+ .nav-btn .nav-label{font-size:11px}
+ .utility-menu>.top-actions{max-height:min(76dvh,540px)}
+}
+@media(min-width:720px) and (max-width:1100px){.top{padding:10px 13px}.brand{flex-shrink:1}.header-meta{display:none}.utility-menu{margin-left:auto}}
+/* V024 – graph layout controls, process-graph visibility and compact mobile toolbar. */
+.graph-status{font-size:11px;color:#5b7180;padding:5px 13px;border-bottom:1px solid #deeaed;background:#f6fafb;flex-shrink:0}
+.graph-tools .graph-field{display:flex;flex-direction:column;gap:1px;font-size:11px;color:#526d7a;font-weight:700;min-width:115px;flex:1 1 115px}
+.graph-tools .graph-field select{width:100%;font-weight:500}
+.graph-tools .graph-field[hidden]{display:none}
+.graph-tools .graph-check{display:inline-flex;align-items:center;gap:5px;font-size:12px}
+@media(max-width:719px){.graph-tools{max-height:225px;gap:7px;overflow-y:auto}.graph-tools .graph-field{min-width:calc(50% - 8px);flex:1 1 calc(50% - 8px)}.graph-tools .graph-field select{font-size:14px;min-height:39px;padding:4px}.graph-tools .btn{min-height:39px}.graph-canvas{min-height:160px}}
+
+/* Versteckte Auswahlfelder und PWA-Steuerelemente müssen unabhängig vom Layout verborgen bleiben. */
+[hidden]{display:none!important}

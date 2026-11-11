@@ -1,5 +1,5 @@
-/* PWA V023: Cache nur freigegebene statische App-Dateien, keine importierten JSON-Daten. */
-const CACHE_NAME="pmi-wissensnavigator-v023-flat-1";
+/* PWA V024: Cache nur freigegebene statische App-Dateien, keine importierten JSON-Daten. */
+const CACHE_NAME="pmi-wissensnavigator-v024-flat-1";
 const SHELL=["./", "./index.html", "./viewer.css", "./viewer.js", "./sync-core.js", "./vis-network.min.js", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./icon-maskable-512.png"];
 const ALLOWED=new Set(SHELL.map(p=>new URL(p,self.registration.scope).pathname));
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting()));});
