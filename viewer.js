@@ -55,7 +55,7 @@ async function pwaStart(){
  catch(e){console.warn('Gespeicherter Wissensbestand nicht ladbar',e);pwaShowWelcome(true);const info=document.getElementById('pwaLocalStatus');if(info)info.textContent='Lokale Daten konnten nicht geladen werden. Bitte Original-JSON erneut importieren.'}
 }
 
-const S={menuAction:null,processId:null,menuGroup:'all',view:'faq',faq:null,node:null,tab:'simple',query:'',category:'all',scope:'all',proof:'all',sort:'id',exact:false,advanced:[],join:'all',graphRelation:'all',graphFocus:false,graphMode:'visual',graphScope:'anchor',graphKind:'knowledge',graphLayout:'net',graphProcessId:null,graphShowRefs:false,mobilePanel:'list',filtered:[],visibleNodes:[],remarks:[],searchError:''};
+const S={menuAction:null,processId:null,menuGroup:'all',view:'faq',faq:null,node:null,tab:'simple',query:'',category:'all',scope:'all',proof:'all',sort:'id',exact:false,advanced:[],join:'all',graphRelation:'all',graphFocus:false,graphMode:'visual',graphScope:'anchor',graphKind:'knowledge',graphLayout:'net',graphProcessId:null,graphShowRefs:false,graphGrouping:'single',graphGroupPick:null,mobilePanel:'list',filtered:[],visibleNodes:[],remarks:[],searchError:''};
 const nodeId=n=>String(n?.id??''),edgeId=e=>String(e?.id??'');
 function toast(t){let x=$('toast');x.textContent=t;x.classList.remove('hidden');clearTimeout(toast._t);toast._t=setTimeout(()=>x.classList.add('hidden'),4000)}
 function bundleError(m){$('importError').classList.remove('hidden');$('importError').textContent=m;toast(m)}
@@ -95,7 +95,7 @@ const obj=[f.primaryAnchor.entityId,...(f.relatedEntities??[]).map(e=>e.entityId
 const ev=f.evidenceRefs?.flatMap(ref=>{let x=evidence.get(ref);return x?.sourceFileNameMentions??[]})??[];
 derived.set(f.faqId,{...section,objects:obj.join(' '),sources:ev,all:[f.faqId,f.question,section.simple,section.technical,section.review,obj.join(' '),ev.join(' ')].join(' \n ')})}
 S.faq=[...faqMap.keys()][0];S.node=null;S.view='faq';S.tab='simple';S.query='';S.category='all';S.proof='all';S.scope='all';S.advanced=[];S.remarks=[];S.join='all';S.graphRelation='all';S.graphFocus=false;S.graphScope='anchor';S.mobilePanel='list';S.searchError='';if(network){network.destroy();network=null}
-$('query').value='';$('category').value='all';$('proof').value='all';$('scope').value='all';$('sort').value='id';$('sourceTag').textContent=(b.manifest?.sourceZip||'ZIP 1824')+' · '+(b.manifest?.knowledgeVersion||'V005')+' Daten';$('schemaTag').textContent='Viewer V023 · Mobile First';$('loadedFile').textContent=b.manifest?.label||'Eingebettete Referenzdaten V005';$('importError').classList.add('hidden');if(menuData&&!extensionCompatible(menuData,b))menuData=null;renderAll();}
+$('query').value='';$('category').value='all';$('proof').value='all';$('scope').value='all';$('sort').value='id';$('sourceTag').textContent=(b.manifest?.sourceZip||'ZIP 1824')+' · '+(b.manifest?.knowledgeVersion||'V005')+' Daten';$('schemaTag').textContent='Viewer V025 · Mobile First';$('loadedFile').textContent=b.manifest?.label||'Eingebettete Referenzdaten V005';$('importError').classList.add('hidden');if(menuData&&!extensionCompatible(menuData,b))menuData=null;renderAll();}
 function parseQuery(input){const groups=[['']], raw=String(input||'');let cur=groups[0];let escape=false;for(let c of raw){if(escape){cur[cur.length-1]+=c;escape=false;continue}if(c==='\\'){escape=true;continue}if(c==='#'){cur=[''];groups.push(cur);continue}if(c==='|'){cur.push('');continue}cur[cur.length-1]+=c}if(escape)cur[cur.length-1]+='\\';return groups.map(g=>g.map(x=>x.trim()).filter(Boolean)).filter(g=>g.length>0)}
 function normalized(t,ex){t=String(t??'').toLocaleLowerCase('de');return ex?t:t.normalize('NFKD').replace(/[\u0300-\u036f]/g,'')}
 function matchQuery(text){if(!S.query.trim())return true;let t=normalized(text,S.exact);return parseQuery(S.query).every(g=>g.some(q=>t.includes(normalized(q,S.exact))))}
@@ -163,21 +163,25 @@ function renderDetail(){let mid=$('detail');mid.classList.remove('hidden');let f
  mid.innerHTML=detailHead('Wissensgraph und Prozessabläufe','INTERAKTIVER GRAPH','Knoten wählen, Zusammenhänge erkunden · Prozesskette als redaktioneller Entwurf')+
  '<div class="graph-pane"><div class="graph-tools">'+
  '<label class="graph-field" for="graphKind">Darstellung<select id="graphKind"><option value="knowledge">Wissensnetz</option><option value="process">Teilprozess</option></select></label>'+
- '<label class="graph-field" for="graphLayout">Layout<select id="graphLayout"><option value="net">Freies Netzwerk</option><option value="lr">Ablauf links → rechts</option><option value="ud">Hierarchie oben → unten</option></select></label>'+
+ '<label class="graph-field" for="graphLayout">Layout<select id="graphLayout"><option value="net">Freies Netzwerk</option><option value="lr">Ablauf links → rechts</option><option value="ud">Hierarchie oben → unten</option><option value="lanes">Swimlanes (Programme)</option></select></label>'+
+ '<label class="graph-field" id="graphGroupingField" for="graphGrouping">Wissensgliederung<select id="graphGrouping"><option value="single">Einzelne Objekte</option><option value="types">Nach dokumentiertem Knotentyp</option></select></label>'+
+ '<button id="graphGroupBack" type="button" class="btn tiny" hidden>← Gruppenübersicht</button>'+
  '<label class="graph-field" id="graphProcessField" for="graphProcess">Teilprozess<select id="graphProcess"></select></label>'+
  '<label class="graph-field" id="graphScopeField" for="graphScope">Umfang<select id="graphScope"><option value="anchor">Ein Objekt + Nachbarn</option><option value="current">Aktuelle FAQ + Kontext</option><option value="matches">Suchtreffer + Kontext</option><option value="all">Alle Wissensknoten</option></select></label>'+
  '<label class="graph-field" id="graphRelationField" for="relation">Beziehungen<select id="relation"><option value="all">Alle Beziehungen</option></select></label>'+
  '<label class="graph-check" id="graphRefsField"><input id="graphRefs" type="checkbox"> FAQs und Menüaktionen einblenden</label>'+
  '<button id="graphFit" class="btn tiny">Einpassen</button><button id="graphList" class="btn tiny">Listenansicht</button></div>'+
- '<div id="graphStatus" class="graph-status" role="status"></div><div id="graphCanvas" class="graph-canvas" role="img" aria-label="Interaktiver Wissens- oder Prozessgraph"></div><div id="graphListFallback" class="graph-fallback hidden"></div></div>';
+ '<div id="graphStatus" class="graph-status" role="status"></div><div id="graphCanvas" class="graph-canvas" role="img" aria-label="Interaktiver Wissens- oder Prozessgraph"></div><div id="graphSwimlanes" class="graph-swimlanes hidden" aria-label="Teilprozess nach Programmbezug"></div><div id="graphListFallback" class="graph-fallback hidden"></div></div>';
  const relation=$('relation');for(const t of [...new Set([...edgeMap.values()].map(e=>e.relationType))].sort()){let o=document.createElement('option');o.value=t;o.textContent=t;relation.appendChild(o)}
- relation.value=S.graphRelation;$('graphScope').value=S.graphScope;$('graphKind').value=S.graphKind;$('graphLayout').value=S.graphLayout;$('graphRefs').checked=S.graphShowRefs;
+ relation.value=S.graphRelation;$('graphScope').value=S.graphScope;$('graphKind').value=S.graphKind;$('graphLayout').value=S.graphLayout;$('graphGrouping').value=S.graphGrouping;$('graphRefs').checked=S.graphShowRefs;
  const procSel=$('graphProcess');for(const x of menuData?.processes||[]){const o=document.createElement('option');o.value=x.processId;o.textContent=x.title;procSel.appendChild(o)}
  if(!S.graphProcessId||!menuData?.processes?.some(x=>x.processId===S.graphProcessId))S.graphProcessId=menuData?.processes?.[0]?.processId||null;
  procSel.value=S.graphProcessId||'';
- const controls=()=>{const p=S.graphKind==='process';$('graphProcessField').hidden=!p;$('graphScopeField').hidden=p;$('graphRelationField').hidden=p;$('graphRefsField').hidden=!p;};controls();
- $('graphKind').onchange=()=>{S.graphKind=$('graphKind').value;if(S.graphKind==='process'&&S.graphLayout==='net')S.graphLayout='lr';$('graphLayout').value=S.graphLayout;controls();renderGraph()};
- $('graphLayout').onchange=()=>{S.graphLayout=$('graphLayout').value;renderGraph()};
+ const controls=()=>{const p=S.graphKind==='process',grouped=S.graphGrouping==='types',lanes=p&&S.graphLayout==='lanes';$('graphProcessField').hidden=!p;$('graphScopeField').hidden=p||grouped;$('graphRelationField').hidden=p;$('graphRefsField').hidden=!p||lanes;$('graphFit').hidden=lanes;$('graphGroupingField').hidden=p;$('graphGroupBack').hidden=p||!grouped||!S.graphGroupPick;for(const o of $('graphLayout').options)if(o.value==='lanes')o.hidden=!p;};controls();
+ $('graphKind').onchange=()=>{S.graphKind=$('graphKind').value;if(S.graphKind==='process'&&S.graphLayout==='net')S.graphLayout='lr';if(S.graphKind==='knowledge'&&S.graphLayout==='lanes')S.graphLayout='net';$('graphLayout').value=S.graphLayout;controls();renderGraph()};
+ $('graphGrouping').onchange=()=>{S.graphGrouping=$('graphGrouping').value;S.graphGroupPick=null;if(S.graphGrouping==='types'){S.graphScope='all';$('graphScope').value='all';}controls();renderGraph()};
+ $('graphGroupBack').onclick=()=>{S.graphGroupPick=null;controls();renderGraph()};
+ $('graphLayout').onchange=()=>{S.graphLayout=$('graphLayout').value;if(S.graphLayout==='lanes')S.graphMode='visual';controls();renderGraph()};
  $('graphScope').onchange=()=>{S.graphScope=$('graphScope').value;renderGraph()};
  relation.onchange=()=>{S.graphRelation=relation.value;renderGraph()};
  procSel.onchange=()=>{S.graphProcessId=procSel.value;renderGraph()};
@@ -216,11 +220,44 @@ if(!f){el.innerHTML='';return}const qa=qas.get(f.faqId)||{},ev=(f.evidenceRefs||
 wireAside();}
 function wireAside(){document.querySelectorAll('#asideBody [data-tab]').forEach(b=>b.onclick=()=>detailTab(b.dataset.tab));document.querySelectorAll('#asideBody [data-faq]').forEach(b=>b.onclick=()=>chooseFaq(b.dataset.faq));document.querySelectorAll('#asideBody [data-node]').forEach(b=>b.onclick=()=>chooseNode(b.dataset.node))}
 function graphNodeColor(n,highlight,dim){return highlight?'#0e9e9a':dim?'#e5eaed':n.id.startsWith('doc_')?'#d4e5ef':'#b8d5e1'}
+/* V025: Graph-Gruppen nutzen ausschließlich vorhandene VV4 templateRef.key. Keine erfundene Domänenzuordnung. */
+function graphTypeTitle(key){const names={'technical.ui':'Oberflächen','technical.module':'Module','technical.logic':'Programmlogik','technical.interface':'Schnittstellen','technical.file':'Dateien','technical.database':'Datenbanken','technical.storage':'Datenspeicher','technical.profile':'Profile','technical.runtime':'Laufzeit','technical.context':'Technische Kontexte','context.document':'Dokumente','context.system':'System','context.domain':'Fachkontext','documentation.faq':'FAQ-Anker'};return Object.prototype.hasOwnProperty.call(names,key)?names[key]:key;}
+/* V025: Prozess-Lanes sind HEURISTISCHE Sicht aus vorhandenen FAQ-Kürzeln, keine Runtimebeobachtung. */
+function processLaneForStep(step){const areas=new Set();for(const id of step.faqRefs||[]){const match=/^FAQ-(BGX|ARB|OXB)-/.exec(String(id));if(match)areas.add({BGX:'Baugruppengenerator',ARB:'Arbeitsvorrat / BHT',OXB:'Oxaion / Bridge'}[match[1]])}return areas.size===1?[...areas][0]:areas.size>1?'Bereichsübergreifend':'Nicht zugeordnet';}
+function renderProcessSwimlanes(el,msg){
+ const p=menuData?.processes?.find(x=>x.processId===S.graphProcessId);
+ if(!p){msg.textContent='Bitte zuerst das private Menü-/Prozessregister importieren.';el.innerHTML='<div class="empty">Noch keine Teilprozesse geladen.</div>';el.classList.remove('hidden');return}
+ const steps=p.steps||[],byLane=new Map();steps.forEach((s,i)=>{const lane=processLaneForStep(s);if(!byLane.has(lane))byLane.set(lane,[]);byLane.get(lane).push({step:s,index:i})});
+ const order=['Baugruppengenerator','Arbeitsvorrat / BHT','Oxaion / Bridge','Bereichsübergreifend','Nicht zugeordnet'];
+ const lanes=order.filter(k=>byLane.has(k));
+ // DOM-Aufbau nur mit textContent: importierte Prozessdaten werden niemals als HTML interpretiert.
+ const intro=document.createElement('div');intro.className='lane-notice';intro.textContent='Redaktionelle Schrittfolge. Programmspuren aus FAQ-Kennungen abgeleitet; keine bestätigte Laufzeit-, Rollen- oder Ende-zu-Ende-Prüfung.';el.appendChild(intro);
+ const scroll=document.createElement('div');scroll.className='lane-scroll';scroll.tabIndex=0;scroll.setAttribute('aria-label','Horizontale Schrittfolge: nach rechts wischen oder scrollen');
+ const table=document.createElement('div');table.className='lane-grid';table.style.setProperty('--step-count',String(steps.length));
+ const corner=document.createElement('div');corner.className='lane-corner';corner.textContent='Programmbezug / Schritt';table.appendChild(corner);
+ steps.forEach((s,i)=>{const h=document.createElement('div');h.className='lane-stephead';h.style.gridColumn=String(i+2);h.style.gridRow='1';h.textContent='Schritt '+String(i+1);table.appendChild(h)});
+ lanes.forEach((lane,row)=>{const label=document.createElement('div');label.className='lane-label';label.style.gridRow=String(row+2);label.style.gridColumn='1';label.textContent=lane;table.appendChild(label);
+ for(const {step,index} of byLane.get(lane)){
+  const cell=document.createElement('div');cell.className='lane-cell';cell.style.gridColumn=String(index+2);cell.style.gridRow=String(row+2);
+  const b=document.createElement('button');b.className='lane-card';b.type='button';b.dataset.stepId=step.stepId;
+  const number=document.createElement('span');number.className='lane-number';number.textContent=String(index+1).padStart(2,'0');b.appendChild(number);
+  const title=document.createElement('strong');title.textContent=step.title;b.appendChild(title);
+  const sub=document.createElement('small');sub.textContent=(step.faqRefs||[]).length+' FAQ-Belege · '+(step.menuActionKeys||[]).length+' Menüverweise';b.appendChild(sub);
+  b.onclick=()=>{chooseProcess(p.processId);requestAnimationFrame(()=>{const x=[...document.querySelectorAll('[data-process-step]')].find(x=>x.dataset.processStep===step.stepId);if(x){x.scrollIntoView({block:'center',behavior:'smooth'});x.classList.add('lane-target');setTimeout(()=>x.classList.remove('lane-target'),1700)}})};
+  cell.appendChild(b);table.appendChild(cell);
+ }
+ });
+ scroll.appendChild(table);el.appendChild(scroll);
+ const foot=document.createElement('div');foot.className='lane-foot';foot.textContent='Nach rechts wischen, um die vollständige Schrittfolge zu sehen. Eine Karte öffnet den entsprechenden Prozessschritt.';el.appendChild(foot);el.classList.remove('hidden');
+ msg.textContent=p.title+' · '+steps.length+' Schritte in '+lanes.length+' abgeleiteten Programmspuren · kein End-to-End-Nachweis';
+}
 function renderGraph(){
  if(S.view!=='graph')return;
- const canvas=$('graphCanvas'),fallback=$('graphListFallback'),msg=$('graphStatus');if(!canvas||!fallback)return;
+ const canvas=$('graphCanvas'),fallback=$('graphListFallback'),msg=$('graphStatus'),lanes=$('graphSwimlanes');if(!canvas||!fallback||!lanes)return;
+ lanes.classList.add('hidden');lanes.replaceChildren();
+ if(S.graphKind==='process'&&S.graphLayout==='lanes'&&S.graphMode==='visual'){if(network){network.destroy();network=null}canvas.classList.add('hidden');fallback.classList.add('hidden');renderProcessSwimlanes(lanes,msg);$('graphList').textContent='Listenansicht';return;}
  let nodes=[],edges=[],selectedNodes=new Set(),dimMode=false,navMap=new Map();
- const processMode=S.graphKind==='process';
+ const processMode=S.graphKind==='process',typeGrouping=!processMode&&S.graphGrouping==='types';
  if(processMode){
   const p=menuData?.processes?.find(x=>x.processId===S.graphProcessId);
   if(!p){if(network){network.destroy();network=null}canvas.classList.add('hidden');fallback.classList.remove('hidden');fallback.innerHTML='<div class="empty">Bitte zuerst das private Menü-/Prozessregister importieren.</div>';msg.textContent='Keine Prozessdaten geladen.';return}
@@ -245,7 +282,24 @@ function renderGraph(){
   edges=edges.filter(e=>visible.has(e.from)&&visible.has(e.to));
   nodes=[...nodeMap.values()].filter(n=>visible.has(n.id)).map(n=>({id:n.id,label:n.label,title:esc((anns[n.id]?.title||n.label)+'\n'+n.id),shape:'box',borderWidth:selectedNodes.has(n.id)?2:1,font:{color:'#254251',size:12,face:'Arial'},color:{background:graphNodeColor(n,selectedNodes.has(n.id),false),border:selectedNodes.has(n.id)?'#087e86':'#9dbac6',highlight:{background:'#ffdfaa',border:'#e0a34a'}},margin:8}));
   edges=edges.map(e=>({id:e.id,from:e.from,to:e.to,title:esc(e.relationType+': '+(e.label||'')),arrows:'to',dashes:e.relationType==='documents',width:e.relationType==='documents'?1.8:1.1,color:{color:e.relationType==='documents'?'#087e86':'#b6c4cb',opacity:.8}}));
-  msg.textContent=nodes.length+' Wissensobjekte · '+edges.length+' Beziehungen · '+(S.graphScope==='all'?'Gesamtnetz':'Eingegrenzter Ausschnitt')+' · Dokumentationskanten sind keine Laufzeitaufrufe';
+  if(typeGrouping){
+   const groupKey=id=>String(nodeMap.get(id)?.meta?.templateRef?.key||'ohne Zuordnung');
+   const selected=S.graphGroupPick;
+   if(selected){
+    const keep=new Set(nodes.filter(n=>groupKey(n.id)===selected).map(n=>n.id));
+    nodes=nodes.filter(n=>keep.has(n.id));edges=edges.filter(e=>keep.has(e.from)&&keep.has(e.to));
+    msg.textContent='Knotentyp '+selected+' · '+nodes.length+' Objekte · '+edges.length+' interne Beziehungen · externe Verbindungen ausgeblendet';
+   }else{
+    const allNodes=nodes;const groups=new Map();for(const n of allNodes){const k=groupKey(n.id);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(n)}
+    nodes=[...groups].sort((a,b)=>a[0].localeCompare(b[0])).map(([key,contents])=>{
+     const id='group:'+key;navMap.set(id,{type:'group',groupKey:key});return {id,label:graphTypeTitle(key)+'\n'+contents.length+' Wissensobjekte',shape:'box',font:{size:13,color:'#173e4b',face:'Arial'},margin:15,color:{background:'#def3ee',border:'#479e95'},title:esc(key+' · Anklicken zum Öffnen der Gruppe')};
+    });
+    const pairs=new Map();for(const e of edges){const a=groupKey(e.from),b=groupKey(e.to);if(a===b)continue;const k=a+'\u0000'+b;pairs.set(k,(pairs.get(k)||0)+1)}
+    edges=[...pairs].map(([k,c],i)=>{const [from,to]=k.split('\u0000');return{id:'groupedge:'+i,from:'group:'+from,to:'group:'+to,arrows:'to',width:1+Math.min(4,Math.log2(c+1)),color:{color:'#a7b9c2',opacity:.65},title:c+' dokumentierte Beziehungen zwischen Knotentypen'}});
+    msg.textContent=groups.size+' Knotentyp-Gruppen · '+allNodes.length+' Wissensobjekte · aggregierte Beziehungen · Gruppe anklicken zum Öffnen';
+   }
+  }else msg.textContent=nodes.length+' Wissensobjekte · '+edges.length+' Beziehungen · '+(S.graphScope==='all'?'Gesamtnetz':'Eingegrenzter Ausschnitt')+' · Dokumentationskanten sind keine Laufzeitaufrufe';
+  const groupBack=$('graphGroupBack');if(groupBack)groupBack.hidden=!typeGrouping||!S.graphGroupPick;
  }
  if(network){network.destroy();network=null}fallback.innerHTML='';
  if(S.graphMode==='list'||typeof vis==='undefined'||typeof vis.Network!=='function'){
@@ -266,6 +320,7 @@ function renderGraph(){
 }
 function graphSelectNode(id,navMap){
  const n=navMap.get(id);
+ if(n?.type==='group'){S.graphGroupPick=n.groupKey;const b=$('graphGroupBack');if(b)b.hidden=false;renderGraph();return}
  if(n?.type==='faq'){chooseFaq(n.faqId);return}
  if(n?.type==='menu'){chooseMenu(n.actionKey);return}
  if(n?.type==='step'){
@@ -283,7 +338,7 @@ if(S.view!=='graph'){
  if(S.view==='faq' || S.view==='quality' || S.view==='sources'){
    const f=faqMap.get(S.faq);const index=matchedFaqs().findIndex(x=>x.faqId===S.faq);const span=document.createElement('span');span.className='mobile-position';span.textContent=index>=0?(index+1)+' / '+matchedFaqs().length:'FAQ';bar.appendChild(span);
  }
- const focus=document.createElement('button');focus.className='mobile-context';focus.type='button';focus.textContent='◎ Graph';focus.onclick=()=>{S.view='graph';S.graphScope='anchor';S.graphFocus=true;S.mobilePanel='detail';renderAll()};bar.appendChild(focus);mid.prepend(bar);
+ const focus=document.createElement('button');focus.className='mobile-context';focus.type='button';focus.textContent='◎ Graph';focus.onclick=()=>{S.view='graph';S.graphScope='anchor';S.graphGroupPick=null;S.graphFocus=true;S.mobilePanel='detail';renderAll()};bar.appendChild(focus);mid.prepend(bar);
  if(S.view==='faq'){
  const article=mid.querySelector('.article');if(article){const fs=matchedFaqs(),index=fs.findIndex(f=>f.faqId===S.faq);const footer=document.createElement('div');footer.className='mobile-read-footer';
  for(const [label,idx] of [['← Vorherige',index-1],['Nächste →',index+1]]){const btn=document.createElement('button');btn.type='button';btn.textContent=label;btn.disabled=idx<0||idx>=fs.length;btn.onclick=()=>{if(idx>=0&&idx<fs.length){S.faq=fs[idx].faqId;S.tab='simple';S.mobilePanel='detail';renderAll()}};footer.appendChild(btn)}article.appendChild(footer)
@@ -349,7 +404,7 @@ function chooseMenu(k){if(!menuData?.menus.some(a=>a.actionKey===k))return;S.men
 function chooseProcess(k){if(!menuData?.processes.some(p=>p.processId===k))return;S.processId=k;S.view='processes';S.mobilePanel='detail';renderAll();}
 function menuMatch(a){if(S.menuGroup!=='all'&&a.groupStatic!==S.menuGroup)return false;const corpus=[a.actionKey,a.labelStatic,a.groupStatic,a.primaryCallName,a.handlerExpression,a.context?.ruleClass,a.context?.possibleBranchKeys?.join(' '),(a.faqLinks||[]).join(' ')].join(' ');return matchQuery(corpus)}
 function processMatch(p){const corpus=[p.processId,p.title,p.trigger,p.scope,JSON.stringify(p.steps?.map(s=>[s.title,s.faqRefs,s.menuActionKeys]))].join(' ');return matchQuery(corpus)}
-function wireExtensionLinks(root){root.querySelectorAll('[data-menu]').forEach(x=>x.onclick=()=>chooseMenu(x.dataset.menu));root.querySelectorAll('[data-process]').forEach(x=>x.onclick=()=>chooseProcess(x.dataset.process));root.querySelectorAll('[data-faq]').forEach(x=>x.onclick=()=>chooseFaq(x.dataset.faq));root.querySelectorAll('[data-graphfaq]').forEach(x=>x.onclick=()=>{const f=faqMap.get(x.dataset.graphfaq);if(!f)return;S.faq=f.faqId;S.view='graph';S.graphKind='knowledge';S.graphScope='anchor';S.mobilePanel='detail';renderAll()});root.querySelectorAll('[data-process-graph]').forEach(x=>x.onclick=()=>{S.graphKind='process';S.graphProcessId=x.dataset.processGraph;S.graphLayout='lr';S.graphMode='visual';S.view='graph';S.mobilePanel='detail';renderAll()});}
+function wireExtensionLinks(root){root.querySelectorAll('[data-menu]').forEach(x=>x.onclick=()=>chooseMenu(x.dataset.menu));root.querySelectorAll('[data-process]').forEach(x=>x.onclick=()=>chooseProcess(x.dataset.process));root.querySelectorAll('[data-faq]').forEach(x=>x.onclick=()=>chooseFaq(x.dataset.faq));root.querySelectorAll('[data-graphfaq]').forEach(x=>x.onclick=()=>{const f=faqMap.get(x.dataset.graphfaq);if(!f)return;S.faq=f.faqId;S.view='graph';S.graphKind='knowledge';if(S.graphLayout==='lanes')S.graphLayout='net';S.graphScope='anchor';S.mobilePanel='detail';renderAll()});root.querySelectorAll('[data-process-graph]').forEach(x=>x.onclick=()=>{S.graphKind='process';S.graphProcessId=x.dataset.processGraph;S.graphLayout='lr';S.graphMode='visual';S.view='graph';S.mobilePanel='detail';renderAll()});}
 function extensionFaqButtons(ids){return (ids||[]).filter(id=>faqMap.has(id)).map(id=>'<button type="button" class="ext-ref" data-faq="'+esc(id)+'">'+esc(id)+' · '+esc(faqMap.get(id).question)+'</button>').join('')||'<p class="ext-muted">Noch kein direkt zugeordneter FAQ-Beleg.</p>'}
 function renderExtensionView(){
  document.body.classList.add('ext-view');$('faqFilterPanel').hidden=true;$('menuFilters').hidden=S.view!=='menus';
