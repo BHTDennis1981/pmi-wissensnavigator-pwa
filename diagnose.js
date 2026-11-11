@@ -1,0 +1,7 @@
+(async()=>{
+const files=['index.html','viewer.js','viewer.css','sync-core.js','sw.js','manifest.webmanifest','vis-network.min.js','icon-192.png','icon-512.png','icon-maskable-512.png'];
+const root=document.getElementById('results'), summary=document.getElementById('summary'); let passed=0;
+for(const name of files){const li=document.createElement('li');let good=false,reason='';try{const res=await fetch('./'+name+'?pwa_check=013',{cache:'no-store'});good=res.ok;reason='HTTP '+res.status;if(good&&name.startsWith('icon-')){const blob=await res.blob();const b=await createImageBitmap(blob);const target= name==='icon-192.png'?192:512;good=b.width===target&&b.height===target;reason+=` · ${b.width} × ${b.height} px`;b.close()}if(good&&name==='manifest.webmanifest'){const m=await res.json();good=m.display==='standalone'&&m.icons?.length>=2;reason+=' · Manifest geprüft'}}catch(e){reason=String(e.message||e)}if(good)passed++;li.textContent=name+' – '+reason+' ';const state=document.createElement('strong');state.className=good?'ok':'no';state.textContent=good?'OK':'FEHLER';li.appendChild(state);root.appendChild(li)}
+const li=document.createElement('li');const sw='serviceWorker' in navigator;li.textContent='Service Worker unterstützt – '+(sw?'Ja':'Nein');root.appendChild(li);
+summary.textContent=passed+'/'+files.length+' Dateien erreichbar. '+(passed===files.length?'App-Dateien vollständig veröffentlicht. Installation/Offline noch separat testen.':'Fehlende Dateien bitte erneut in das Stammverzeichnis hochladen.');
+})();
