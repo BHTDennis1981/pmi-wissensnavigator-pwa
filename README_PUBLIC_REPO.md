@@ -22,3 +22,8 @@ V025: Das obere Werkzeugmenü ist in allen Ausrichtungen über „Menü“ errei
 **V025 neu:** Wissensnetz optional nach vorhandenen VV4-Knotentypen gruppieren (Gruppen öffnen/zurück). Teilprozess per Layout „Swimlanes (Programme)“ als horizontal scrollbar angeordnete, aus FAQ-Verweisen abgeleitete Programmspuren anzeigen. Keine Runtime-/Rollen-/End-to-End-Abnahme. In Swimlanes nicht wirksame Standard-Graphfunktionen werden ausgeblendet.
 
 **Bei bereits vorhandenen V024-Daten:** Ein erneuter Import ist für diese rein darstellungsbezogene Aktualisierung nicht erforderlich. Vor der Bereitstellung trotzdem Gesamtsicherung exportieren.
+
+
+## V029
+
+Build: App V029. Sichtbare App-Version wird aus dem geladenen Skript ermittelt, FAQ-/Prozessversion separat aus lokal importierten Daten. `build-info.json` ist öffentlich und enthält nur die App-Buildversion, keine interne PMI-Wissensbasis. Bei jedem Release `build-info.json` und `CACHE_NAME` in `sw.js` aktualisieren.

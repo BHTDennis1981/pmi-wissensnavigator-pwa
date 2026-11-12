@@ -166,3 +166,17 @@
 .decision-inspector .decision-note{font-size:11px;color:#5e7782}.decision-path{margin:8px 0;background:white;border:1px solid #d6e5e4;border-radius:9px;padding:8px 10px}
 .decision-path b{color:#275c5d}.decision-path button{margin-top:6px;min-height:36px;white-space:normal}
 @media(max-width:719px){.decision-inspector{max-height:42%;padding:10px;line-height:1.45}.decision-path{padding:9px}.graph-field#graphDecisionField{min-width:calc(100% - 8px)}}
+
+/* V029: getrennte, immer sichtbare App- und Datenversion. */
+.version-line{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:3px;font-size:11px;color:#c6e0e5;line-height:1.35}
+.version-app{display:inline-flex;align-items:center;background:#157b81;color:#fff;font-weight:800;border:1px solid #4ca4a7;border-radius:6px;padding:2px 7px;white-space:nowrap}
+#dataVersionBadge{color:#d9e5eb;font-size:11px}
+.pwa-version-panel{margin:12px 0 7px;border:1px solid #5f7c8b;border-radius:9px;background:#173a4c;padding:10px;color:#f1fafb;font-size:12px;line-height:1.5}
+.pwa-version-panel strong{display:block;margin-bottom:5px}.pwa-version-panel p{margin:4px 0;color:#deebed;overflow-wrap:anywhere}.pwa-version-panel small{display:block;margin-top:7px;color:#a9c7d1;font-size:11px}
+.pwa-version-panel .btn{font-size:12px;min-height:40px;padding:8px;margin:5px 5px 0 0;border:1px solid #6e9aa4}
+#releaseStatus[data-state="newer"]{color:#ffe8b5;font-weight:750}#releaseStatus[data-state="current"]{color:#a9edcb}
+.semantic-legend{display:flex;gap:9px;flex-wrap:wrap;align-items:center;background:#f7fafb;padding:7px 11px;border-bottom:1px solid #d9e6e9;font-size:11px;color:#405b66}
+.semantic-legend[hidden]{display:none!important}.semantic-legend span{display:flex;align-items:center;gap:5px;white-space:nowrap}.semantic-legend i{display:inline-block;width:11px;height:11px;border:1px solid #aaa;border-radius:3px}
+.semantic-legend .sem-gate{background:#fff1d9;border-color:#c48b3a}.semantic-legend .sem-axis{background:#dff1fc;border-color:#488fb4}.semantic-legend .sem-choice{background:#e1f5ec;border-color:#419477}.semantic-legend .sem-priority{background:#efebfc;border-color:#8a73c1}
+.semantic-legend small{flex-basis:100%;color:#58727e;font-size:10px}
+@media(max-width:719px){.brand{align-items:flex-start}.brand .version-line{font-size:10px;gap:4px}#dataVersionBadge{font-size:10px}.semantic-legend{gap:6px;padding:6px 9px;font-size:10px}.semantic-legend i{width:10px;height:10px}}

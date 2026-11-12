@@ -1,0 +1,9 @@
+{
+  "schema": "pmi.pwa.build-info.v1",
+  "appVersion": "V029",
+  "buildId": "pmi-navigator-v029-20261112",
+  "releasedAt": "2026-11-12",
+  "publicAssetsOnly": true,
+  "knowledgeIncluded": false,
+  "source": "PWA code package V029"
+}

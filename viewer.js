@@ -2,6 +2,7 @@
 'use strict';
 /* PMI Wissensnavigator V011: purely local, read-only, offline. Untrusted content is escaped. */
 (function(){
+const APP_VERSION='V029';
 const $=id=>document.getElementById(id), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let bundle=null,faqMap=new Map(),nodeMap=new Map(),edgeMap=new Map(),anns={},qas=new Map(),evidence=new Map(),derived=new Map(),network=null,graphLastHash='';
 let syncPending=null, syncLastReport=null, syncLastAcceptedBundle=null;
@@ -34,6 +35,48 @@ async function pwaDeleteBundle(){let db=await pwaDb();try{await new Promise((res
  let tx=db.transaction([PWA_STORE,PWA_EXT_STORE],'readwrite');tx.objectStore(PWA_STORE).delete('active');tx.objectStore(PWA_EXT_STORE).delete('active');tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
 });}finally{db.close()}}
 function pwaShowWelcome(show){const el=document.getElementById('pwaWelcome');if(el)el.hidden=!show;}
+function versionNumber(v){const m=String(v||'').match(/^V(\d+)$/i);return m?Number(m[1]):null}
+function renderVersionLabels(){
+ const faq=bundle?.manifest?.knowledgeVersion||'–',proc=menuData?.knowledgeVersion||'–';
+ const app=$('appVersionBadge'),data=$('dataVersionBadge');
+ if(app)app.textContent='App '+APP_VERSION;
+ if(data)data.textContent='FAQ '+faq+' · Prozesse '+proc;
+ const detail=$('versionDetail');if(detail)detail.textContent='Geladene Anwendung: '+APP_VERSION+' · FAQ-Daten: '+faq+' · Menü-/Prozessdaten: '+proc+'. Versionsstände der Inhalte werden aus den tatsächlich importierten JSON-Dateien gelesen.';
+ const schema=$('schemaTag');if(schema)schema.textContent='App '+APP_VERSION;
+}
+function setReleaseState(text,state){const el=$('releaseStatus');if(el){el.textContent=text;el.dataset.state=state||'unknown'};const upd=$('pwaUpdateNow');if(upd)upd.hidden=state!=='newer'}
+async function checkPublishedVersion(){
+ // build-info.json ist absichtlich NICHT im Service-Worker-Cache; offline = unbekannt, nie 'aktuell'.
+ if(navigator.onLine===false){setReleaseState('Offline – Online-Version nicht prüfbar','offline');return}
+ try{
+  const response=await fetch('./build-info.json?verify='+Date.now(),{cache:'no-store'});
+  if(!response.ok)throw Error('HTTP '+response.status);
+  const info=await response.json(),published=versionNumber(info?.appVersion),local=versionNumber(APP_VERSION);
+  if(info?.schema!=='pmi.pwa.build-info.v1'||published===null||local===null)throw Error('Ungültige Versionsinformation');
+  if(published>local)setReleaseState('Update verfügbar: '+info.appVersion+' (installiert '+APP_VERSION+')','newer');
+  else if(published===local)setReleaseState('Online geprüft: '+APP_VERSION+' veröffentlicht','current');
+  else setReleaseState('Lokal '+APP_VERSION+' · Online '+info.appVersion+' (abweichender Stand)','mismatch');
+ }catch(e){setReleaseState('Online-Version nicht überprüfbar','unknown')}
+}
+async function updateAppNow(){
+ const button=$('pwaUpdateNow');if(button)button.disabled=true;
+ try{const r=await navigator.serviceWorker?.getRegistration('./');if(r)await r.update();
+  // Neu laden nutzt das zuletzt aktivierte Service-Worker-Skript; lokale Daten bleiben in IndexedDB.
+  location.reload();
+ }catch(e){if(button)button.disabled=false;toast('Update nicht möglich. Bitte App bei bestehender Internetverbindung erneut öffnen.')}
+}
+function initVersionUI(){
+ renderVersionLabels();setReleaseState('Online-Version noch nicht geprüft','unknown');
+ $('pwaCheckVersion')?.addEventListener('click',checkPublishedVersion);
+ $('pwaUpdateNow')?.addEventListener('click',updateAppNow);
+ window.addEventListener('online',checkPublishedVersion);
+ window.addEventListener('offline',()=>setReleaseState('Offline – Online-Version nicht prüfbar','offline'));
+ if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('controllerchange',()=>{
+  const upd=$('pwaUpdateNow');if(upd){upd.hidden=false;upd.disabled=false;upd.textContent='Neue App geladen – Ansicht neu starten'}
+  setReleaseState('Eine neue Service-Worker-Version ist aktiv; neu laden','newer');
+ });
+ checkPublishedVersion();
+}
 function pwaSetup(){
  document.getElementById('pwaWelcomeImport').onclick=()=>document.getElementById('fileImport').click();
  const del=document.getElementById('pwaClearLocal');del.onclick=async()=>{
@@ -50,7 +93,7 @@ function pwaSetup(){
  }
 }
 async function pwaStart(){
- pwaSetup();wire();
+ pwaSetup();wire();initVersionUI();
  try{let existing=await pwaReadBundle();if(existing){validateViewerBundleStrict(existing);prepare(existing);pwaShowWelcome(false);let saved=await pwaReadExtension();if(saved){try{activateExtension(saved);renderAll()}catch(extError){console.warn('Gespeicherte Erweiterung nicht passend',extError);toast('Menü-/Prozessdaten nicht kompatibel. Bitte passende Erweiterung importieren.')}}}else{pwaShowWelcome(true)}}
  catch(e){console.warn('Gespeicherter Wissensbestand nicht ladbar',e);pwaShowWelcome(true);const info=document.getElementById('pwaLocalStatus');if(info)info.textContent='Lokale Daten konnten nicht geladen werden. Bitte Original-JSON erneut importieren.'}
 }
@@ -95,7 +138,7 @@ const obj=[f.primaryAnchor.entityId,...(f.relatedEntities??[]).map(e=>e.entityId
 const ev=f.evidenceRefs?.flatMap(ref=>{let x=evidence.get(ref);return x?.sourceFileNameMentions??[]})??[];
 derived.set(f.faqId,{...section,objects:obj.join(' '),sources:ev,all:[f.faqId,f.question,section.simple,section.technical,section.review,obj.join(' '),ev.join(' ')].join(' \n ')})}
 S.faq=[...faqMap.keys()][0];S.node=null;S.view='faq';S.tab='simple';S.query='';S.category='all';S.proof='all';S.scope='all';S.advanced=[];S.remarks=[];S.join='all';S.graphRelation='all';S.graphFocus=false;S.graphScope='anchor';S.mobilePanel='list';S.searchError='';if(network){network.destroy();network=null}
-$('query').value='';$('category').value='all';$('proof').value='all';$('scope').value='all';$('sort').value='id';$('sourceTag').textContent=(b.manifest?.sourceZip||'ZIP 1824')+' · '+(b.manifest?.knowledgeVersion||'V005')+' Daten';$('schemaTag').textContent='Viewer V027 · Mobile First';$('loadedFile').textContent=b.manifest?.label||'Eingebettete Referenzdaten V005';$('importError').classList.add('hidden');if(menuData&&!extensionCompatible(menuData,b))menuData=null;renderAll();}
+$('query').value='';$('category').value='all';$('proof').value='all';$('scope').value='all';$('sort').value='id';$('sourceTag').textContent=(b.manifest?.sourceZip||'ZIP 1824')+' · '+(b.manifest?.knowledgeVersion||'V005')+' Daten';$('schemaTag').textContent='App '+APP_VERSION+' · Mobile First';$('loadedFile').textContent=b.manifest?.label||'Eingebettete Referenzdaten V005';$('importError').classList.add('hidden');if(menuData&&!extensionCompatible(menuData,b))menuData=null;renderVersionLabels();renderAll();}
 function parseQuery(input){const groups=[['']], raw=String(input||'');let cur=groups[0];let escape=false;for(let c of raw){if(escape){cur[cur.length-1]+=c;escape=false;continue}if(c==='\\'){escape=true;continue}if(c==='#'){cur=[''];groups.push(cur);continue}if(c==='|'){cur.push('');continue}cur[cur.length-1]+=c}if(escape)cur[cur.length-1]+='\\';return groups.map(g=>g.map(x=>x.trim()).filter(Boolean)).filter(g=>g.length>0)}
 function normalized(t,ex){t=String(t??'').toLocaleLowerCase('de');return ex?t:t.normalize('NFKD').replace(/[\u0300-\u036f]/g,'')}
 function matchQuery(text){if(!S.query.trim())return true;let t=normalized(text,S.exact);return parseQuery(S.query).every(g=>g.some(q=>t.includes(normalized(q,S.exact))))}
@@ -172,7 +215,7 @@ function renderDetail(){let mid=$('detail');mid.classList.remove('hidden');let f
  '<label class="graph-field" id="graphRelationField" for="relation">Beziehungen<select id="relation"><option value="all">Alle Beziehungen</option></select></label>'+
  '<label class="graph-check" id="graphRefsField"><input id="graphRefs" type="checkbox"> FAQs und Menüaktionen einblenden</label>'+
  '<button id="graphFit" class="btn tiny">Einpassen</button><button id="graphList" class="btn tiny">Listenansicht</button></div>'+
- '<div id="graphStatus" class="graph-status" role="status"></div><div id="graphCanvas" class="graph-canvas" role="img" aria-label="Interaktiver Wissens- oder Prozessgraph"></div><div id="graphSwimlanes" class="graph-swimlanes hidden" aria-label="Teilprozess nach Programmbezug"></div><div id="graphListFallback" class="graph-fallback hidden"></div><div id="graphDecisionDetail" class="decision-inspector hidden" role="region" aria-live="polite" aria-label="Prüfpfad-Details"></div></div>';
+ '<div id="graphStatus" class="graph-status" role="status"></div><div class="semantic-legend" id="graphSemanticLegend" hidden><span><i class="sem-gate"></i>Voraussetzung</span><span><i class="sem-axis"></i>Unabhängige Prüfung</span><span><i class="sem-choice"></i>Auswahl</span><span><i class="sem-priority"></i>Priorität</span><small>Alle Kanten = dokumentierte Prüfbezüge, keine Ausführung.</small></div><div id="graphCanvas" class="graph-canvas" role="img" aria-label="Interaktiver Wissens- oder Prozessgraph"></div><div id="graphSwimlanes" class="graph-swimlanes hidden" aria-label="Teilprozess nach Programmbezug"></div><div id="graphListFallback" class="graph-fallback hidden"></div><div id="graphDecisionDetail" class="decision-inspector hidden" role="region" aria-live="polite" aria-label="Prüfpfad-Details"></div></div>';
  const relation=$('relation');for(const t of [...new Set([...edgeMap.values()].map(e=>e.relationType))].sort()){let o=document.createElement('option');o.value=t;o.textContent=t;relation.appendChild(o)}
  relation.value=S.graphRelation;$('graphScope').value=S.graphScope;$('graphKind').value=S.graphKind;$('graphLayout').value=S.graphLayout;$('graphGrouping').value=S.graphGrouping;$('graphRefs').checked=S.graphShowRefs;
  const procSel=$('graphProcess');for(const x of menuData?.processes||[]){const o=document.createElement('option');o.value=x.processId;o.textContent=x.title;procSel.appendChild(o)}
@@ -254,9 +297,16 @@ function renderProcessSwimlanes(el,msg){
  const foot=document.createElement('div');foot.className='lane-foot';foot.textContent='Nach rechts wischen, um die vollständige Schrittfolge zu sehen. Eine Karte öffnet den entsprechenden Prozessschritt.';el.appendChild(foot);el.classList.remove('hidden');
  msg.textContent=p.title+' · '+steps.length+' Schritte in '+lanes.length+' abgeleiteten Programmspuren · kein End-to-End-Nachweis';
 }
+const DECISION_KINDS={
+ PREREQUISITE_GATE:{label:'Voraussetzung / Gate',short:'GATE',color:'#fff1d9',border:'#c48b3a',text:'#6d4b1c',shape:'diamond'},
+ INDEPENDENT_ASSESSMENT:{label:'Unabhängige Prüfachse',short:'PRÜFACHSE',color:'#dff1fc',border:'#488fb4',text:'#174b69',shape:'box'},
+ SEQUENTIAL_CHOICE:{label:'Bedingte Auswahl',short:'AUSWAHL',color:'#e1f5ec',border:'#419477',text:'#1b5646',shape:'diamond'},
+ SEQUENTIAL_PRIORITY:{label:'Priorisierte Auswahl',short:'PRIORITÄT',color:'#efebfc',border:'#8a73c1',text:'#51417b',shape:'diamond'}
+};
+function decisionKind(d){return DECISION_KINDS[d?.decisionSemanticsV028?.kind]||{label:'Semantik nicht klassifiziert',short:'OFFEN',color:'#f1f2f3',border:'#8f9ca4',text:'#354750',shape:'box'}}
 function renderGraph(){
  if(S.view!=='graph')return;
- const canvas=$('graphCanvas'),fallback=$('graphListFallback'),msg=$('graphStatus'),lanes=$('graphSwimlanes'),inspector=$('graphDecisionDetail');if(!canvas||!fallback||!lanes)return;if(inspector){inspector.replaceChildren();inspector.classList.add('hidden')}
+ const canvas=$('graphCanvas'),fallback=$('graphListFallback'),msg=$('graphStatus'),lanes=$('graphSwimlanes'),inspector=$('graphDecisionDetail');const legend=$('graphSemanticLegend');if(legend)legend.hidden=!(S.graphKind==='process'&&S.graphLayout==='branches');if(!canvas||!fallback||!lanes)return;if(inspector){inspector.replaceChildren();inspector.classList.add('hidden')}
  lanes.classList.add('hidden');lanes.replaceChildren();
  if(S.graphKind==='process'&&S.graphLayout==='lanes'&&S.graphMode==='visual'){if(network){network.destroy();network=null}canvas.classList.add('hidden');fallback.classList.add('hidden');renderProcessSwimlanes(lanes,msg);$('graphList').textContent='Listenansicht';return;}
  let nodes=[],edges=[],selectedNodes=new Set(),dimMode=false,navMap=new Map();
@@ -272,14 +322,28 @@ function renderGraph(){
    const filtered=S.graphDecisionId==='all'?decisionNodes:decisionNodes.filter(d=>d.decisionId===S.graphDecisionId);
    if(!filtered.length)msg.textContent='Dieser Teilprozess besitzt noch keine dokumentierten Entscheidungsknoten.';
    const stepMap=new Map(p.steps.map((step,i)=>[step.stepId,{step,i}]));
-   const stepNode=(id)=>{const item=stepMap.get(id);if(!item)return null;const sid='step:'+p.processId+':'+id;addNode({id:sid,label:'Schritt '+(item.i+1)+'\n'+item.step.title,shape:'box',level:0,margin:10,font:{size:12,color:'#174657'},color:{background:'#deecf2',border:'#7297ac'},title:'Dokumentierter Prozessschritt; kein Laufzeitnachweis'},{type:'step',processId:p.processId,stepId:id});return sid};
-   for(const d of filtered){const start=stepNode(d.afterStepId),did='decision:'+p.processId+':'+d.decisionId;
-    addNode({id:did,label:'? Entscheidung\n'+d.title,shape:'box',level:1,margin:16,widthConstraint:{maximum:210},font:{size:13,color:'#583914',multi:false},color:{background:'#ffedcb',border:'#c38a39'},title:esc(d.condition+'\nQuelle: '+(d.sourceRefs||[]).join(', '))},{type:'decision',decisionId:d.decisionId,processId:p.processId});
-    if(start)edges.push({id:'anchor:'+d.decisionId,from:start,to:did,dashes:[6,5],color:{color:'#8aa3ae'},width:1.6,title:'Zuordnung zum dokumentierten Quellschritt – keine gemessene Programmkontrollkante'});
-    d.paths.forEach((path,j)=>{const pid='path:'+p.processId+':'+d.decisionId+':'+j;const stop=path.nextStepId===null;const result=String(path.result||'');
-     addNode({id:pid,label:path.when+'\n'+(stop?'Ende / Prüfung offen':path.effectClass),shape:'box',level:2,margin:10,font:{size:11,color:'#334b59'},color:{background:stop?'#fbe6e4':'#e7f5ed',border:stop?'#b5746d':'#83b49e'},title:esc(result+'\nBeleg: '+(path.evidenceRefs||[]).join(', '))},{type:'path',decisionId:d.decisionId,pathIndex:j,processId:p.processId});
-     edges.push({id:'branch:'+d.decisionId+':'+j,from:did,to:pid,arrows:'to',width:2,color:{color:'#628c8b'},title:esc('Dokumentierter bedingter Prüfpfad: '+path.when)});
-     if(!stop){const target=stepNode(path.nextStepId);if(target)edges.push({id:'nextref:'+d.decisionId+':'+j,from:pid,to:target,dashes:[3,5],color:{color:'#9aabb3'},width:1.4,title:'Verweis auf dokumentierten Schritt '+path.nextStepId+'; kein bestätigter Laufzeitübergang'})}
+   const stepNode=id=>{const item=stepMap.get(id);if(!item)return null;const sid='step:'+p.processId+':'+id;addNode({id:sid,label:'Schritt '+(item.i+1)+'\n'+item.step.title,shape:'box',level:0,margin:10,font:{size:12,color:'#174657'},color:{background:'#deecf2',border:'#7297ac'},title:'Dokumentierter Prozessschritt; kein Laufzeitnachweis'},{type:'step',processId:p.processId,stepId:id});return sid};
+   // Gemeinsame Prüfachsen als lose Dokumentationsgruppe: kein UND-/ODER-/Control-Flow-Pfeil.
+   const groups=new Map();
+   for(const d of filtered)if(d.decisionSemanticsV028?.kind==='INDEPENDENT_ASSESSMENT'&&d.decisionSemanticsV028?.independenceGroup){
+    const key=d.decisionSemanticsV028.independenceGroup;if(!groups.has(key))groups.set(key,[]);groups.get(key).push(d)
+   }
+   for(const [key,items] of groups)if(items.length>1){
+    const gid='axisgroup:'+p.processId+':'+key;
+    addNode({id:gid,label:'PARALLELE PRÜFACHEN\n'+key+'\n'+items.length+' Bedingungen',shape:'box',level:1,margin:12,font:{size:12,color:'#174b69'},color:{background:'#eaf6ff',border:'#76a3bd'},title:'Gemeinsamer Dokumentationsbereich; unabhängige Statusprüfungen, keine Pfad-Auswahl'},{type:'axisgroup',processId:p.processId});
+    for(const d of items)edges.push({id:'axisref:'+d.decisionId,from:gid,to:'decision:'+p.processId+':'+d.decisionId,dashes:[3,6],width:1,color:{color:'#7fabc0'},title:'Zusammengehörige unabhängige Prüfachsen; keine Ablaufkante'});
+   }
+   for(const d of filtered){
+    const k=decisionKind(d),kind=d.decisionSemanticsV028?.kind||'UNCLASSIFIED';
+    const start=stepNode(d.afterStepId),did='decision:'+p.processId+':'+d.decisionId;
+    addNode({id:did,label:k.short+'\n'+d.title,shape:k.shape,level:kind==='INDEPENDENT_ASSESSMENT'?2:1,margin:14,widthConstraint:{maximum:225},font:{size:12,color:k.text},color:{background:k.color,border:k.border},title:esc(k.label+'\n'+d.condition+'\nQuelle: '+(d.sourceRefs||[]).join(', '))},{type:'decision',decisionId:d.decisionId,processId:p.processId});
+    if(start)edges.push({id:'anchor:'+d.decisionId,from:start,to:did,dashes:[6,5],color:{color:'#8aa3ae'},width:1.4,title:'Dokumentarische Zuordnung zum Prozessschritt, keine gemessene Programmkante'});
+    d.paths.forEach((path,j)=>{
+     const pid='path:'+p.processId+':'+d.decisionId+':'+j,stop=path.nextStepId===null;
+     const label=kind==='INDEPENDENT_ASSESSMENT'?'Prüfergebnis':kind==='PREREQUISITE_GATE'?'Gate-Ergebnis':kind==='SEQUENTIAL_PRIORITY'?'Prioritätskandidat':'Bedingungsfall';
+     addNode({id:pid,label:path.when+'\n'+label+(stop?' · kein Ziel':''),shape:'box',level:3,margin:10,font:{size:11,color:'#334b59'},color:{background:stop?'#fbe9e7':'#eef6f1',border:stop?'#b5746d':'#83b49e'},title:esc(path.result+'\nBeleg: '+(path.evidenceRefs||[]).join(', '))},{type:'path',decisionId:d.decisionId,pathIndex:j,processId:p.processId});
+     edges.push({id:'branch:'+d.decisionId+':'+j,from:did,to:pid,arrows:kind==='INDEPENDENT_ASSESSMENT'?'':'to',dashes:kind==='INDEPENDENT_ASSESSMENT'?[5,5]:false,width:1.8,color:{color:kind==='INDEPENDENT_ASSESSMENT'?'#7fabc0':'#628c8b'},title:esc('Dokumentierte '+k.label.toLowerCase()+': '+path.when+' – kein Laufzeitnachweis')});
+     if(!stop){const target=stepNode(path.nextStepId);if(target)edges.push({id:'nextref:'+d.decisionId+':'+j,from:pid,to:target,dashes:[3,5],color:{color:'#9aabb3'},width:1.3,title:'Verweis auf dokumentierten Schritt '+path.nextStepId+'; kein bestätigter Laufzeitübergang'})}
     });
    }
    msg.textContent=p.title+' · '+filtered.length+'/'+decisionNodes.length+' Entscheidungen · '+filtered.reduce((n,d)=>n+d.paths.length,0)+' bedingte Prüfpunkte · gestrichelte Kanten sind nur Dokumentationsverweise';
@@ -345,7 +409,7 @@ function renderDecisionInspector(info,p){
  const add=(tag,text,cls)=>{const el=document.createElement(tag);if(cls)el.className=cls;el.textContent=String(text??'');host.appendChild(el);return el};
  const decisions=p.processDepthV026?.decisionNodes||[];const d=decisions.find(x=>x.decisionId===info?.decisionId);
  if(!d){add('strong','Entscheidung auswählen, um Bedingung, Folgen und Belege zu sehen.');add('p','Die Grafik zeigt dokumentierte Prüfpfade aus BUETER_ERP ZIP1824; sie führt keine ERP-Aktionen aus.','decision-note');return}
- add('strong',d.title,'decision-title');add('p','Bedingung: '+d.condition);add('p','Status: '+d.proofStatus+' · keine End-to-End-Freigabe','decision-note');
+ add('strong',d.title,'decision-title');const kind=decisionKind(d);add('p','Art: '+kind.label+' · '+(d.decisionSemanticsV028?.independenceGroup?'Gruppe: '+d.decisionSemanticsV028.independenceGroup:'ohne Gruppenschlüssel'));if(d.decisionSemanticsV028?.notes)add('p','Einordnung: '+d.decisionSemanticsV028.notes,'decision-note');add('p','Bedingung: '+d.condition);add('p','Status: '+d.proofStatus+' · keine End-to-End-Freigabe','decision-note');
  const paths=info?.type==='path'?[d.paths[info.pathIndex]]:d.paths;
  for(const path of paths.filter(Boolean)){
   const item=document.createElement('div');item.className='decision-path';
@@ -354,12 +418,14 @@ function renderDecisionInspector(info,p){
   if(path.nextStepId){const b=document.createElement('button');b.type='button';b.className='btn tiny';b.textContent='Schritt '+path.nextStepId+' in Prozessbeschreibung';b.onclick=()=>{chooseProcess(p.processId);requestAnimationFrame(()=>{const target=[...document.querySelectorAll('[data-process-step]')].find(x=>x.dataset.processStep===path.nextStepId);target?.scrollIntoView({block:'center',behavior:'smooth'})})};item.appendChild(b)}
   host.appendChild(item)
  }
+ add('p',kind.label==='Unabhängige Prüfachse'?'Die Prüfachse ist unabhängig von anderen Kriterien; ihre Ergebnisse sind keine gegenseitig ausschließenden Gesamtprozesspfade.':'Die Reihenfolge und Freigabebedingungen gelten ausschließlich im dokumentierten Quellkontext.','decision-note');
  add('p','Primärbelege: '+(d.sourceRefs||[]).join(', ')+'. Bei neuer BUETER_ERP-Version erneut prüfen.','decision-note');
  if(mobile())host.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 function graphSelectNode(id,navMap){
  const n=navMap.get(id);
  if(n?.type==='group'){S.graphGroupPick=n.groupKey;const b=$('graphGroupBack');if(b)b.hidden=false;renderGraph();return}
+ if(n?.type==='axisgroup'){toast('Gruppe unabhängiger Prüfungen – einzelne Prüfachsen auswählen.');return}
  if(n?.type==='decision'||n?.type==='path'){const p=menuData?.processes?.find(x=>x.processId===n.processId);if(p)renderDecisionInspector(n,p);return}
  if(n?.type==='faq'){chooseFaq(n.faqId);return}
  if(n?.type==='menu'){chooseMenu(n.actionKey);return}
@@ -440,6 +506,7 @@ function validateExtension(e,b){
   if(!Array.isArray(ds)||ds.length>100)throw Error('Entscheidungsregister zu groß oder ungültig: '+p.processId);
   const stepIds=new Set(p.steps.map(s=>s.stepId)),dids=new Set();let total=0;
   for(const d of ds){if(typeof d.decisionId!=='string'||!d.decisionId||dids.has(d.decisionId)||typeof d.title!=='string'||typeof d.condition!=='string'||!stepIds.has(d.afterStepId)||!Array.isArray(d.sourceRefs)||!Array.isArray(d.paths)||d.paths.length>12)throw Error('Ungültige Prüfentscheidung: '+(d.decisionId||p.processId));dids.add(d.decisionId);total+=d.paths.length;
+   if(d.decisionSemanticsV028!==undefined){const sem=d.decisionSemanticsV028,allowed=['PREREQUISITE_GATE','INDEPENDENT_ASSESSMENT','SEQUENTIAL_CHOICE','SEQUENTIAL_PRIORITY'];if(!sem||!allowed.includes(sem.kind)||!['string','object'].includes(typeof sem.independenceGroup)||(sem.independenceGroup!==null&&typeof sem.independenceGroup!=='string')||typeof sem.independentNotExclusive!=='boolean')throw Error('Ungültige Entscheidungssemantik: '+d.decisionId)}
    for(const x of d.paths){if(typeof x.when!=='string'||typeof x.effectClass!=='string'||typeof x.result!=='string'||!Array.isArray(x.evidenceRefs)||!(x.nextStepId===null||stepIds.has(x.nextStepId)))throw Error('Unbelegter Pfadzielverweis: '+d.decisionId)}
   }
   if(total>500)throw Error('Zu viele Prüfpfade: '+p.processId);
@@ -447,7 +514,7 @@ function validateExtension(e,b){
  for(const a of e.menus)for(const ref of a.processStepRefs){if(typeof ref!=='string'||!e.processes.some(p=>p.steps.some(s=>ref===p.processId+'/'+s.stepId)))throw Error('Menü enthält ungültige Prozessreferenz: '+ref)}
  return true;
 }
-function activateExtension(ext){validateExtension(ext,bundle);menuData=ext;S.menuAction=ext.menus[0]?.actionKey||null;S.processId=ext.processes[0]?.processId||null;S.menuGroup='all';const tag=$('sourceTag');if(tag)tag.textContent=(bundle?.manifest?.sourceZip||'ZIP1824')+' · FAQs '+(bundle?.manifest?.knowledgeVersion||'?')+' / Prozesse '+(ext.knowledgeVersion||'?');}
+function activateExtension(ext){validateExtension(ext,bundle);menuData=ext;S.menuAction=ext.menus[0]?.actionKey||null;S.processId=ext.processes[0]?.processId||null;S.menuGroup='all';const tag=$('sourceTag');if(tag)tag.textContent=(bundle?.manifest?.sourceZip||'ZIP1824')+' · FAQs '+(bundle?.manifest?.knowledgeVersion||'?')+' / Prozesse '+(ext.knowledgeVersion||'?');renderVersionLabels();}
 function exportFullBackup(){if(!bundle)return;const b={schema:'pmi.wissensnavigator.full-backup.v023',createdAt:new Date().toISOString(),coreBundle:bundle,extension:menuData};if(!menuData){toast('Keine Menü-/Prozessdaten geladen; nur FAQ-Daten vorhanden.');textDownload(JSON.stringify(bundle,null,2),'PMI_VIEWER_FAQ_BACKUP.json','application/json;charset=utf-8');return}textDownload(JSON.stringify(b,null,2),'PMI_WISSENSNAVIGATOR_GESAMTBACKUP_V027.json','application/json;charset=utf-8');toast('Gesamtsicherung mit FAQs, Graph und Menü-/Prozessregistern exportiert.');}
 function chooseMenu(k){if(!menuData?.menus.some(a=>a.actionKey===k))return;S.menuAction=k;S.view='menus';S.mobilePanel='detail';renderAll();}
 function chooseProcess(k){if(!menuData?.processes.some(p=>p.processId===k))return;S.processId=k;S.view='processes';S.mobilePanel='detail';renderAll();}
