@@ -55,7 +55,7 @@ async function pwaStart(){
  catch(e){console.warn('Gespeicherter Wissensbestand nicht ladbar',e);pwaShowWelcome(true);const info=document.getElementById('pwaLocalStatus');if(info)info.textContent='Lokale Daten konnten nicht geladen werden. Bitte Original-JSON erneut importieren.'}
 }
 
-const S={menuAction:null,processId:null,menuGroup:'all',view:'faq',faq:null,node:null,tab:'simple',query:'',category:'all',scope:'all',proof:'all',sort:'id',exact:false,advanced:[],join:'all',graphRelation:'all',graphFocus:false,graphMode:'visual',graphScope:'anchor',graphKind:'knowledge',graphLayout:'net',graphProcessId:null,graphShowRefs:false,graphGrouping:'single',graphGroupPick:null,mobilePanel:'list',filtered:[],visibleNodes:[],remarks:[],searchError:''};
+const S={menuAction:null,processId:null,menuGroup:'all',view:'faq',faq:null,node:null,tab:'simple',query:'',category:'all',scope:'all',proof:'all',sort:'id',exact:false,advanced:[],join:'all',graphRelation:'all',graphFocus:false,graphMode:'visual',graphScope:'anchor',graphKind:'knowledge',graphLayout:'net',graphProcessId:null,graphShowRefs:false,graphGrouping:'single',graphGroupPick:null,graphDecisionId:null,mobilePanel:'list',filtered:[],visibleNodes:[],remarks:[],searchError:''};
 const nodeId=n=>String(n?.id??''),edgeId=e=>String(e?.id??'');
 function toast(t){let x=$('toast');x.textContent=t;x.classList.remove('hidden');clearTimeout(toast._t);toast._t=setTimeout(()=>x.classList.add('hidden'),4000)}
 function bundleError(m){$('importError').classList.remove('hidden');$('importError').textContent=m;toast(m)}
@@ -95,7 +95,7 @@ const obj=[f.primaryAnchor.entityId,...(f.relatedEntities??[]).map(e=>e.entityId
 const ev=f.evidenceRefs?.flatMap(ref=>{let x=evidence.get(ref);return x?.sourceFileNameMentions??[]})??[];
 derived.set(f.faqId,{...section,objects:obj.join(' '),sources:ev,all:[f.faqId,f.question,section.simple,section.technical,section.review,obj.join(' '),ev.join(' ')].join(' \n ')})}
 S.faq=[...faqMap.keys()][0];S.node=null;S.view='faq';S.tab='simple';S.query='';S.category='all';S.proof='all';S.scope='all';S.advanced=[];S.remarks=[];S.join='all';S.graphRelation='all';S.graphFocus=false;S.graphScope='anchor';S.mobilePanel='list';S.searchError='';if(network){network.destroy();network=null}
-$('query').value='';$('category').value='all';$('proof').value='all';$('scope').value='all';$('sort').value='id';$('sourceTag').textContent=(b.manifest?.sourceZip||'ZIP 1824')+' · '+(b.manifest?.knowledgeVersion||'V005')+' Daten';$('schemaTag').textContent='Viewer V025 · Mobile First';$('loadedFile').textContent=b.manifest?.label||'Eingebettete Referenzdaten V005';$('importError').classList.add('hidden');if(menuData&&!extensionCompatible(menuData,b))menuData=null;renderAll();}
+$('query').value='';$('category').value='all';$('proof').value='all';$('scope').value='all';$('sort').value='id';$('sourceTag').textContent=(b.manifest?.sourceZip||'ZIP 1824')+' · '+(b.manifest?.knowledgeVersion||'V005')+' Daten';$('schemaTag').textContent='Viewer V027 · Mobile First';$('loadedFile').textContent=b.manifest?.label||'Eingebettete Referenzdaten V005';$('importError').classList.add('hidden');if(menuData&&!extensionCompatible(menuData,b))menuData=null;renderAll();}
 function parseQuery(input){const groups=[['']], raw=String(input||'');let cur=groups[0];let escape=false;for(let c of raw){if(escape){cur[cur.length-1]+=c;escape=false;continue}if(c==='\\'){escape=true;continue}if(c==='#'){cur=[''];groups.push(cur);continue}if(c==='|'){cur.push('');continue}cur[cur.length-1]+=c}if(escape)cur[cur.length-1]+='\\';return groups.map(g=>g.map(x=>x.trim()).filter(Boolean)).filter(g=>g.length>0)}
 function normalized(t,ex){t=String(t??'').toLocaleLowerCase('de');return ex?t:t.normalize('NFKD').replace(/[\u0300-\u036f]/g,'')}
 function matchQuery(text){if(!S.query.trim())return true;let t=normalized(text,S.exact);return parseQuery(S.query).every(g=>g.some(q=>t.includes(normalized(q,S.exact))))}
@@ -163,28 +163,31 @@ function renderDetail(){let mid=$('detail');mid.classList.remove('hidden');let f
  mid.innerHTML=detailHead('Wissensgraph und Prozessabläufe','INTERAKTIVER GRAPH','Knoten wählen, Zusammenhänge erkunden · Prozesskette als redaktioneller Entwurf')+
  '<div class="graph-pane"><div class="graph-tools">'+
  '<label class="graph-field" for="graphKind">Darstellung<select id="graphKind"><option value="knowledge">Wissensnetz</option><option value="process">Teilprozess</option></select></label>'+
- '<label class="graph-field" for="graphLayout">Layout<select id="graphLayout"><option value="net">Freies Netzwerk</option><option value="lr">Ablauf links → rechts</option><option value="ud">Hierarchie oben → unten</option><option value="lanes">Swimlanes (Programme)</option></select></label>'+
+ '<label class="graph-field" for="graphLayout">Layout<select id="graphLayout"><option value="net">Freies Netzwerk</option><option value="lr">Ablauf links → rechts</option><option value="ud">Hierarchie oben → unten</option><option value="lanes">Swimlanes (Programme)</option><option value="branches">Prüfpfade</option></select></label>'+
  '<label class="graph-field" id="graphGroupingField" for="graphGrouping">Wissensgliederung<select id="graphGrouping"><option value="single">Einzelne Objekte</option><option value="types">Nach dokumentiertem Knotentyp</option></select></label>'+
  '<button id="graphGroupBack" type="button" class="btn tiny" hidden>← Gruppenübersicht</button>'+
  '<label class="graph-field" id="graphProcessField" for="graphProcess">Teilprozess<select id="graphProcess"></select></label>'+
+ '<label class="graph-field" id="graphDecisionField" for="graphDecision">Entscheidung<select id="graphDecision"></select></label>'+
  '<label class="graph-field" id="graphScopeField" for="graphScope">Umfang<select id="graphScope"><option value="anchor">Ein Objekt + Nachbarn</option><option value="current">Aktuelle FAQ + Kontext</option><option value="matches">Suchtreffer + Kontext</option><option value="all">Alle Wissensknoten</option></select></label>'+
  '<label class="graph-field" id="graphRelationField" for="relation">Beziehungen<select id="relation"><option value="all">Alle Beziehungen</option></select></label>'+
  '<label class="graph-check" id="graphRefsField"><input id="graphRefs" type="checkbox"> FAQs und Menüaktionen einblenden</label>'+
  '<button id="graphFit" class="btn tiny">Einpassen</button><button id="graphList" class="btn tiny">Listenansicht</button></div>'+
- '<div id="graphStatus" class="graph-status" role="status"></div><div id="graphCanvas" class="graph-canvas" role="img" aria-label="Interaktiver Wissens- oder Prozessgraph"></div><div id="graphSwimlanes" class="graph-swimlanes hidden" aria-label="Teilprozess nach Programmbezug"></div><div id="graphListFallback" class="graph-fallback hidden"></div></div>';
+ '<div id="graphStatus" class="graph-status" role="status"></div><div id="graphCanvas" class="graph-canvas" role="img" aria-label="Interaktiver Wissens- oder Prozessgraph"></div><div id="graphSwimlanes" class="graph-swimlanes hidden" aria-label="Teilprozess nach Programmbezug"></div><div id="graphListFallback" class="graph-fallback hidden"></div><div id="graphDecisionDetail" class="decision-inspector hidden" role="region" aria-live="polite" aria-label="Prüfpfad-Details"></div></div>';
  const relation=$('relation');for(const t of [...new Set([...edgeMap.values()].map(e=>e.relationType))].sort()){let o=document.createElement('option');o.value=t;o.textContent=t;relation.appendChild(o)}
  relation.value=S.graphRelation;$('graphScope').value=S.graphScope;$('graphKind').value=S.graphKind;$('graphLayout').value=S.graphLayout;$('graphGrouping').value=S.graphGrouping;$('graphRefs').checked=S.graphShowRefs;
  const procSel=$('graphProcess');for(const x of menuData?.processes||[]){const o=document.createElement('option');o.value=x.processId;o.textContent=x.title;procSel.appendChild(o)}
  if(!S.graphProcessId||!menuData?.processes?.some(x=>x.processId===S.graphProcessId))S.graphProcessId=menuData?.processes?.[0]?.processId||null;
  procSel.value=S.graphProcessId||'';
- const controls=()=>{const p=S.graphKind==='process',grouped=S.graphGrouping==='types',lanes=p&&S.graphLayout==='lanes';$('graphProcessField').hidden=!p;$('graphScopeField').hidden=p||grouped;$('graphRelationField').hidden=p;$('graphRefsField').hidden=!p||lanes;$('graphFit').hidden=lanes;$('graphGroupingField').hidden=p;$('graphGroupBack').hidden=p||!grouped||!S.graphGroupPick;for(const o of $('graphLayout').options)if(o.value==='lanes')o.hidden=!p;};controls();
- $('graphKind').onchange=()=>{S.graphKind=$('graphKind').value;if(S.graphKind==='process'&&S.graphLayout==='net')S.graphLayout='lr';if(S.graphKind==='knowledge'&&S.graphLayout==='lanes')S.graphLayout='net';$('graphLayout').value=S.graphLayout;controls();renderGraph()};
+ const refreshDecisions=()=>{const sel=$('graphDecision'),p=menuData?.processes?.find(x=>x.processId===S.graphProcessId),arr=p?.processDepthV026?.decisionNodes||[];sel.replaceChildren();const all=document.createElement('option');all.value='all';all.textContent='Alle Entscheidungen ('+arr.length+')';sel.appendChild(all);for(const d of arr){const o=document.createElement('option');o.value=d.decisionId;o.textContent=d.title;sel.appendChild(o)}if(S.graphDecisionId!=='all'&&!arr.some(d=>d.decisionId===S.graphDecisionId))S.graphDecisionId=arr[0]?.decisionId||'all';sel.value=S.graphDecisionId};refreshDecisions();
+ const controls=()=>{const p=S.graphKind==='process',grouped=S.graphGrouping==='types',lanes=p&&S.graphLayout==='lanes',branches=p&&S.graphLayout==='branches';$('graphProcessField').hidden=!p;$('graphDecisionField').hidden=!branches;$('graphScopeField').hidden=p||grouped;$('graphRelationField').hidden=p;$('graphRefsField').hidden=!p||lanes||branches;$('graphFit').hidden=lanes;$('graphGroupingField').hidden=p;$('graphGroupBack').hidden=p||!grouped||!S.graphGroupPick;for(const o of $('graphLayout').options)if(['lanes','branches'].includes(o.value))o.hidden=!p;};controls();
+ $('graphKind').onchange=()=>{S.graphKind=$('graphKind').value;if(S.graphKind==='process'&&S.graphLayout==='net')S.graphLayout='lr';if(S.graphKind==='knowledge'&&['lanes','branches'].includes(S.graphLayout))S.graphLayout='net';$('graphLayout').value=S.graphLayout;controls();renderGraph()};
  $('graphGrouping').onchange=()=>{S.graphGrouping=$('graphGrouping').value;S.graphGroupPick=null;if(S.graphGrouping==='types'){S.graphScope='all';$('graphScope').value='all';}controls();renderGraph()};
  $('graphGroupBack').onclick=()=>{S.graphGroupPick=null;controls();renderGraph()};
  $('graphLayout').onchange=()=>{S.graphLayout=$('graphLayout').value;if(S.graphLayout==='lanes')S.graphMode='visual';controls();renderGraph()};
  $('graphScope').onchange=()=>{S.graphScope=$('graphScope').value;renderGraph()};
  relation.onchange=()=>{S.graphRelation=relation.value;renderGraph()};
- procSel.onchange=()=>{S.graphProcessId=procSel.value;renderGraph()};
+ procSel.onchange=()=>{S.graphProcessId=procSel.value;S.graphDecisionId=null;refreshDecisions();renderGraph()};
+ $('graphDecision').onchange=()=>{S.graphDecisionId=$('graphDecision').value;renderGraph()};
  $('graphRefs').onchange=()=>{S.graphShowRefs=$('graphRefs').checked;renderGraph()};
  $('graphFit').onclick=()=>network?.fit({animation:{duration:280,easingFunction:'easeInOutQuad'}});
  $('graphList').onclick=()=>{S.graphMode=S.graphMode==='visual'?'list':'visual';renderGraph()};
@@ -253,7 +256,7 @@ function renderProcessSwimlanes(el,msg){
 }
 function renderGraph(){
  if(S.view!=='graph')return;
- const canvas=$('graphCanvas'),fallback=$('graphListFallback'),msg=$('graphStatus'),lanes=$('graphSwimlanes');if(!canvas||!fallback||!lanes)return;
+ const canvas=$('graphCanvas'),fallback=$('graphListFallback'),msg=$('graphStatus'),lanes=$('graphSwimlanes'),inspector=$('graphDecisionDetail');if(!canvas||!fallback||!lanes)return;if(inspector){inspector.replaceChildren();inspector.classList.add('hidden')}
  lanes.classList.add('hidden');lanes.replaceChildren();
  if(S.graphKind==='process'&&S.graphLayout==='lanes'&&S.graphMode==='visual'){if(network){network.destroy();network=null}canvas.classList.add('hidden');fallback.classList.add('hidden');renderProcessSwimlanes(lanes,msg);$('graphList').textContent='Listenansicht';return;}
  let nodes=[],edges=[],selectedNodes=new Set(),dimMode=false,navMap=new Map();
@@ -263,7 +266,25 @@ function renderGraph(){
   if(!p){if(network){network.destroy();network=null}canvas.classList.add('hidden');fallback.classList.remove('hidden');fallback.innerHTML='<div class="empty">Bitte zuerst das private Menü-/Prozessregister importieren.</div>';msg.textContent='Keine Prozessdaten geladen.';return}
   const seen=new Set();
   const addNode=(n,nav)=>{if(seen.has(n.id))return;seen.add(n.id);nodes.push(n);navMap.set(n.id,nav)};
-  p.steps.forEach((step,i)=>{
+  if(S.graphLayout==='branches'){
+   // V027: Das Entscheidungsgitter sind fachliche Prüfreferenzen, kein ausführbarer Kontrollfluss.
+   const decisionNodes=p.processDepthV026?.decisionNodes||[];
+   const filtered=S.graphDecisionId==='all'?decisionNodes:decisionNodes.filter(d=>d.decisionId===S.graphDecisionId);
+   if(!filtered.length)msg.textContent='Dieser Teilprozess besitzt noch keine dokumentierten Entscheidungsknoten.';
+   const stepMap=new Map(p.steps.map((step,i)=>[step.stepId,{step,i}]));
+   const stepNode=(id)=>{const item=stepMap.get(id);if(!item)return null;const sid='step:'+p.processId+':'+id;addNode({id:sid,label:'Schritt '+(item.i+1)+'\n'+item.step.title,shape:'box',level:0,margin:10,font:{size:12,color:'#174657'},color:{background:'#deecf2',border:'#7297ac'},title:'Dokumentierter Prozessschritt; kein Laufzeitnachweis'},{type:'step',processId:p.processId,stepId:id});return sid};
+   for(const d of filtered){const start=stepNode(d.afterStepId),did='decision:'+p.processId+':'+d.decisionId;
+    addNode({id:did,label:'? Entscheidung\n'+d.title,shape:'box',level:1,margin:16,widthConstraint:{maximum:210},font:{size:13,color:'#583914',multi:false},color:{background:'#ffedcb',border:'#c38a39'},title:esc(d.condition+'\nQuelle: '+(d.sourceRefs||[]).join(', '))},{type:'decision',decisionId:d.decisionId,processId:p.processId});
+    if(start)edges.push({id:'anchor:'+d.decisionId,from:start,to:did,dashes:[6,5],color:{color:'#8aa3ae'},width:1.6,title:'Zuordnung zum dokumentierten Quellschritt – keine gemessene Programmkontrollkante'});
+    d.paths.forEach((path,j)=>{const pid='path:'+p.processId+':'+d.decisionId+':'+j;const stop=path.nextStepId===null;const result=String(path.result||'');
+     addNode({id:pid,label:path.when+'\n'+(stop?'Ende / Prüfung offen':path.effectClass),shape:'box',level:2,margin:10,font:{size:11,color:'#334b59'},color:{background:stop?'#fbe6e4':'#e7f5ed',border:stop?'#b5746d':'#83b49e'},title:esc(result+'\nBeleg: '+(path.evidenceRefs||[]).join(', '))},{type:'path',decisionId:d.decisionId,pathIndex:j,processId:p.processId});
+     edges.push({id:'branch:'+d.decisionId+':'+j,from:did,to:pid,arrows:'to',width:2,color:{color:'#628c8b'},title:esc('Dokumentierter bedingter Prüfpfad: '+path.when)});
+     if(!stop){const target=stepNode(path.nextStepId);if(target)edges.push({id:'nextref:'+d.decisionId+':'+j,from:pid,to:target,dashes:[3,5],color:{color:'#9aabb3'},width:1.4,title:'Verweis auf dokumentierten Schritt '+path.nextStepId+'; kein bestätigter Laufzeitübergang'})}
+    });
+   }
+   msg.textContent=p.title+' · '+filtered.length+'/'+decisionNodes.length+' Entscheidungen · '+filtered.reduce((n,d)=>n+d.paths.length,0)+' bedingte Prüfpunkte · gestrichelte Kanten sind nur Dokumentationsverweise';
+   // Detailkarte erst nach Antippen öffnen, damit auf Mobilgeräten der Graph Platz behält.
+  }else p.steps.forEach((step,i)=>{
    const id='step:'+p.processId+':'+step.stepId;
    addNode({id,label:(i+1)+'. '+step.title,shape:'box',level:i*2,color:{background:'#d0f0e9',border:'#21877b'},font:{color:'#163e45',size:14,face:'Arial'},margin:13,title:esc((step.evidenceStrength||'Prüfstatus offen')+'\nNicht Ende-zu-Ende geprüft')},{type:'step',processId:p.processId,stepId:step.stepId});
    if(i>0)edges.push({id:'flow:'+i,from:'step:'+p.processId+':'+p.steps[i-1].stepId,to:id,arrows:'to',width:2.5,color:{color:'#127b84'},title:'Redaktionelle Schrittfolge; keine Laufzeitmessung'});
@@ -272,7 +293,7 @@ function renderGraph(){
     for(const mid of step.menuActionKeys||[]){const a=menuData?.menus?.find(x=>x.actionKey===mid);if(!a)continue;const ref='menu:'+mid;addNode({id:ref,label:'Menü: '+a.labelStatic,shape:'box',level:i*2+1,color:{background:'#faeddb',border:'#c49a58'},font:{size:11,color:'#624523'},margin:8},{type:'menu',actionKey:mid});edges.push({id:'menuedge:'+i+':'+mid,from:id,to:ref,dashes:true,arrows:'to',color:{color:'#c9ad80'},title:'Statischer Menübezug, keine Browser- oder Rollenfreigabe'})}
    }
   });
-  msg.textContent=p.title+' · '+p.steps.length+' Schritte · redaktioneller Ablaufentwurf, nicht Ende-zu-Ende getestet'+(S.graphShowRefs?' · mit Quellverweisen':'')+(mobile()?' · Grafik verschieben / mit zwei Fingern zoomen':'');
+  if(S.graphLayout!=='branches')msg.textContent=p.title+' · '+p.steps.length+' Schritte · redaktioneller Ablaufentwurf, nicht Ende-zu-Ende getestet'+(S.graphShowRefs?' · mit Quellverweisen':'')+(mobile()?' · Grafik verschieben / mit zwei Fingern zoomen':'');
  }else{
   const graphFaqs=['current','anchor'].includes(S.graphScope)?[faqMap.get(S.faq)].filter(Boolean):matchedFaqs();
   selectedNodes=S.graphScope==='anchor'?new Set(graphFaqs.map(f=>f.primaryAnchor.entityId)):new Set(graphFaqs.flatMap(f=>[f.primaryAnchor.entityId,...(f.relatedEntities||[]).map(e=>e.entityId)]));
@@ -308,19 +329,38 @@ function renderGraph(){
   fallback.querySelectorAll('[data-graph-node]').forEach(b=>b.onclick=()=>graphSelectNode(b.dataset.graphNode,navMap));return;
  }
  canvas.classList.remove('hidden');fallback.classList.add('hidden');$('graphList').textContent='Listenansicht';
- const directed=S.graphLayout!=='net',hierarchical=directed?{enabled:true,direction:S.graphLayout==='lr'?'LR':'UD',sortMethod:'directed',levelSeparation:processMode?185:165,nodeSpacing:processMode?105:85,treeSpacing:180,blockShifting:true,edgeMinimization:true}:false;
- const options={autoResize:true,layout:{improvedLayout:!directed,randomSeed:105,hierarchical},physics:directed?{enabled:false}:{enabled:true,solver:'barnesHut',barnesHut:{gravitationalConstant:-2400,centralGravity:.1,springLength:135,springConstant:.018,damping:.35},stabilization:{iterations:170}},interaction:{hover:!mobile(),navigationButtons:!mobile(),keyboard:!mobile()},nodes:{shape:'box'},edges:{smooth:directed?{enabled:true,type:'cubicBezier',forceDirection:S.graphLayout==='lr'?'horizontal':'vertical',roundness:.24}:{enabled:true,type:'dynamic'}}};
+ const directed=S.graphLayout!=='net',hierarchical=directed?{enabled:true,direction:['lr','branches'].includes(S.graphLayout)?'LR':'UD',sortMethod:'directed',levelSeparation:processMode?205:165,nodeSpacing:processMode?130:85,treeSpacing:180,blockShifting:true,edgeMinimization:true}:false;
+ const options={autoResize:true,layout:{improvedLayout:!directed,randomSeed:105,hierarchical},physics:directed?{enabled:false}:{enabled:true,solver:'barnesHut',barnesHut:{gravitationalConstant:-2400,centralGravity:.1,springLength:135,springConstant:.018,damping:.35},stabilization:{iterations:170}},interaction:{hover:!mobile(),navigationButtons:!mobile(),keyboard:!mobile()},nodes:{shape:'box'},edges:{smooth:directed?{enabled:true,type:'cubicBezier',forceDirection:['lr','branches'].includes(S.graphLayout)?'horizontal':'vertical',roundness:.24}:{enabled:true,type:'dynamic'}}};
  try{
   network=new vis.Network(canvas,{nodes:new vis.DataSet(nodes),edges:new vis.DataSet(edges)},options);
   let current=network;
   if(!directed)current.once('stabilized',()=>{if(network!==current)return;current.setOptions({physics:{enabled:false}});current.fit({animation:false})});
-  else current.once('afterDrawing',()=>{requestAnimationFrame(()=>{if(network!==current)return;if(processMode&&mobile()&&nodes.length){current.focus(nodes[0].id,{scale:.85,animation:false});}else current.fit({animation:false})})});
+  else current.once('afterDrawing',()=>{requestAnimationFrame(()=>{if(network!==current)return;if(processMode&&mobile()&&nodes.length){current.focus((S.graphLayout==='branches'&&nodes.find(n=>String(n.id).startsWith('decision:'))?.id)||nodes[0].id,{scale:S.graphLayout==='branches'?.78:.85,animation:false});}else current.fit({animation:false})})});
   current.on('click',p=>{if(p.nodes.length)graphSelectNode(p.nodes[0],navMap);else if(!processMode&&p.edges.length)chooseNode(p.edges[0])});
  }catch(e){console.error('Graph nicht darstellbar',e);S.graphMode='list';renderGraph()}
+}
+/* V027: Quellgebundene Prüfpfad-Details. Importierte Texte nur textContent, keine Handlerausführung. */
+function renderDecisionInspector(info,p){
+ const host=$('graphDecisionDetail');if(!host)return;host.replaceChildren();host.classList.remove('hidden');
+ const add=(tag,text,cls)=>{const el=document.createElement(tag);if(cls)el.className=cls;el.textContent=String(text??'');host.appendChild(el);return el};
+ const decisions=p.processDepthV026?.decisionNodes||[];const d=decisions.find(x=>x.decisionId===info?.decisionId);
+ if(!d){add('strong','Entscheidung auswählen, um Bedingung, Folgen und Belege zu sehen.');add('p','Die Grafik zeigt dokumentierte Prüfpfade aus BUETER_ERP ZIP1824; sie führt keine ERP-Aktionen aus.','decision-note');return}
+ add('strong',d.title,'decision-title');add('p','Bedingung: '+d.condition);add('p','Status: '+d.proofStatus+' · keine End-to-End-Freigabe','decision-note');
+ const paths=info?.type==='path'?[d.paths[info.pathIndex]]:d.paths;
+ for(const path of paths.filter(Boolean)){
+  const item=document.createElement('div');item.className='decision-path';
+  const name=document.createElement('b');name.textContent=path.when;item.appendChild(name);
+  for(const line of ['Wirkungsklasse: '+path.effectClass,'Ergebnis: '+path.result,'Nächster dokumentierter Bezug: '+(path.nextStepId?'Schritt '+path.nextStepId:'Kein Folgeschritt belegt'),'Quellen: '+(path.evidenceRefs||[]).join(', ')]){let x=document.createElement('p');x.textContent=line;item.appendChild(x)}
+  if(path.nextStepId){const b=document.createElement('button');b.type='button';b.className='btn tiny';b.textContent='Schritt '+path.nextStepId+' in Prozessbeschreibung';b.onclick=()=>{chooseProcess(p.processId);requestAnimationFrame(()=>{const target=[...document.querySelectorAll('[data-process-step]')].find(x=>x.dataset.processStep===path.nextStepId);target?.scrollIntoView({block:'center',behavior:'smooth'})})};item.appendChild(b)}
+  host.appendChild(item)
+ }
+ add('p','Primärbelege: '+(d.sourceRefs||[]).join(', ')+'. Bei neuer BUETER_ERP-Version erneut prüfen.','decision-note');
+ if(mobile())host.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 function graphSelectNode(id,navMap){
  const n=navMap.get(id);
  if(n?.type==='group'){S.graphGroupPick=n.groupKey;const b=$('graphGroupBack');if(b)b.hidden=false;renderGraph();return}
+ if(n?.type==='decision'||n?.type==='path'){const p=menuData?.processes?.find(x=>x.processId===n.processId);if(p)renderDecisionInspector(n,p);return}
  if(n?.type==='faq'){chooseFaq(n.faqId);return}
  if(n?.type==='menu'){chooseMenu(n.actionKey);return}
  if(n?.type==='step'){
@@ -395,23 +435,32 @@ function validateExtension(e,b){
  const keys=new Set(),pids=new Set(),faqids=new Set(b.faqIndex.entries.map(x=>x.faqId));
  for(const a of e.menus){if(typeof a.actionKey!=='string'||!a.actionKey||keys.has(a.actionKey)||typeof a.labelStatic!=='string'||!Array.isArray(a.faqLinks)||!Array.isArray(a.processStepRefs))throw Error('Doppelte oder fehlerhafte Menüaktion.');keys.add(a.actionKey);for(const f of a.faqLinks)if(!faqids.has(f))throw Error('Menü verweist auf unbekannte FAQ: '+f)}
  for(const p of e.processes){if(typeof p.processId!=='string'||!p.processId||pids.has(p.processId)||typeof p.title!=='string'||!Array.isArray(p.steps))throw Error('Fehlerhafter Teilprozess.');pids.add(p.processId);const steps=new Set();for(const s of p.steps){if(!s.stepId||steps.has(s.stepId)||!Array.isArray(s.faqRefs)||!Array.isArray(s.menuActionKeys))throw Error('Ungültiger Prozessschritt.');steps.add(s.stepId);for(const f of s.faqRefs)if(!faqids.has(f))throw Error('Prozess enthält unbekannte FAQ: '+f);for(const a of s.menuActionKeys)if(!keys.has(a))throw Error('Prozess enthält unbekannte Menüaktion: '+a)}}
+ // V027: vorhandene V023/V025-Register bleiben gültig; optionale V026-Tiefe strikt validieren.
+ for(const p of e.processes){const ds=p.processDepthV026?.decisionNodes;if(ds===undefined)continue;
+  if(!Array.isArray(ds)||ds.length>100)throw Error('Entscheidungsregister zu groß oder ungültig: '+p.processId);
+  const stepIds=new Set(p.steps.map(s=>s.stepId)),dids=new Set();let total=0;
+  for(const d of ds){if(typeof d.decisionId!=='string'||!d.decisionId||dids.has(d.decisionId)||typeof d.title!=='string'||typeof d.condition!=='string'||!stepIds.has(d.afterStepId)||!Array.isArray(d.sourceRefs)||!Array.isArray(d.paths)||d.paths.length>12)throw Error('Ungültige Prüfentscheidung: '+(d.decisionId||p.processId));dids.add(d.decisionId);total+=d.paths.length;
+   for(const x of d.paths){if(typeof x.when!=='string'||typeof x.effectClass!=='string'||typeof x.result!=='string'||!Array.isArray(x.evidenceRefs)||!(x.nextStepId===null||stepIds.has(x.nextStepId)))throw Error('Unbelegter Pfadzielverweis: '+d.decisionId)}
+  }
+  if(total>500)throw Error('Zu viele Prüfpfade: '+p.processId);
+ }
  for(const a of e.menus)for(const ref of a.processStepRefs){if(typeof ref!=='string'||!e.processes.some(p=>p.steps.some(s=>ref===p.processId+'/'+s.stepId)))throw Error('Menü enthält ungültige Prozessreferenz: '+ref)}
  return true;
 }
-function activateExtension(ext){validateExtension(ext,bundle);menuData=ext;S.menuAction=ext.menus[0]?.actionKey||null;S.processId=ext.processes[0]?.processId||null;S.menuGroup='all';}
-function exportFullBackup(){if(!bundle)return;const b={schema:'pmi.wissensnavigator.full-backup.v023',createdAt:new Date().toISOString(),coreBundle:bundle,extension:menuData};if(!menuData){toast('Keine Menü-/Prozessdaten geladen; nur FAQ-Daten vorhanden.');textDownload(JSON.stringify(bundle,null,2),'PMI_VIEWER_FAQ_BACKUP.json','application/json;charset=utf-8');return}textDownload(JSON.stringify(b,null,2),'PMI_WISSENSNAVIGATOR_GESAMTBACKUP_V023.json','application/json;charset=utf-8');toast('Gesamtsicherung mit FAQs, Graph und Menü-/Prozessregistern exportiert.');}
+function activateExtension(ext){validateExtension(ext,bundle);menuData=ext;S.menuAction=ext.menus[0]?.actionKey||null;S.processId=ext.processes[0]?.processId||null;S.menuGroup='all';const tag=$('sourceTag');if(tag)tag.textContent=(bundle?.manifest?.sourceZip||'ZIP1824')+' · FAQs '+(bundle?.manifest?.knowledgeVersion||'?')+' / Prozesse '+(ext.knowledgeVersion||'?');}
+function exportFullBackup(){if(!bundle)return;const b={schema:'pmi.wissensnavigator.full-backup.v023',createdAt:new Date().toISOString(),coreBundle:bundle,extension:menuData};if(!menuData){toast('Keine Menü-/Prozessdaten geladen; nur FAQ-Daten vorhanden.');textDownload(JSON.stringify(bundle,null,2),'PMI_VIEWER_FAQ_BACKUP.json','application/json;charset=utf-8');return}textDownload(JSON.stringify(b,null,2),'PMI_WISSENSNAVIGATOR_GESAMTBACKUP_V027.json','application/json;charset=utf-8');toast('Gesamtsicherung mit FAQs, Graph und Menü-/Prozessregistern exportiert.');}
 function chooseMenu(k){if(!menuData?.menus.some(a=>a.actionKey===k))return;S.menuAction=k;S.view='menus';S.mobilePanel='detail';renderAll();}
 function chooseProcess(k){if(!menuData?.processes.some(p=>p.processId===k))return;S.processId=k;S.view='processes';S.mobilePanel='detail';renderAll();}
 function menuMatch(a){if(S.menuGroup!=='all'&&a.groupStatic!==S.menuGroup)return false;const corpus=[a.actionKey,a.labelStatic,a.groupStatic,a.primaryCallName,a.handlerExpression,a.context?.ruleClass,a.context?.possibleBranchKeys?.join(' '),(a.faqLinks||[]).join(' ')].join(' ');return matchQuery(corpus)}
 function processMatch(p){const corpus=[p.processId,p.title,p.trigger,p.scope,JSON.stringify(p.steps?.map(s=>[s.title,s.faqRefs,s.menuActionKeys]))].join(' ');return matchQuery(corpus)}
-function wireExtensionLinks(root){root.querySelectorAll('[data-menu]').forEach(x=>x.onclick=()=>chooseMenu(x.dataset.menu));root.querySelectorAll('[data-process]').forEach(x=>x.onclick=()=>chooseProcess(x.dataset.process));root.querySelectorAll('[data-faq]').forEach(x=>x.onclick=()=>chooseFaq(x.dataset.faq));root.querySelectorAll('[data-graphfaq]').forEach(x=>x.onclick=()=>{const f=faqMap.get(x.dataset.graphfaq);if(!f)return;S.faq=f.faqId;S.view='graph';S.graphKind='knowledge';if(S.graphLayout==='lanes')S.graphLayout='net';S.graphScope='anchor';S.mobilePanel='detail';renderAll()});root.querySelectorAll('[data-process-graph]').forEach(x=>x.onclick=()=>{S.graphKind='process';S.graphProcessId=x.dataset.processGraph;S.graphLayout='lr';S.graphMode='visual';S.view='graph';S.mobilePanel='detail';renderAll()});}
+function wireExtensionLinks(root){root.querySelectorAll('[data-menu]').forEach(x=>x.onclick=()=>chooseMenu(x.dataset.menu));root.querySelectorAll('[data-process]').forEach(x=>x.onclick=()=>chooseProcess(x.dataset.process));root.querySelectorAll('[data-faq]').forEach(x=>x.onclick=()=>chooseFaq(x.dataset.faq));root.querySelectorAll('[data-graphfaq]').forEach(x=>x.onclick=()=>{const f=faqMap.get(x.dataset.graphfaq);if(!f)return;S.faq=f.faqId;S.view='graph';S.graphKind='knowledge';if(S.graphLayout==='lanes')S.graphLayout='net';S.graphScope='anchor';S.mobilePanel='detail';renderAll()});root.querySelectorAll('[data-process-graph]').forEach(x=>x.onclick=()=>{S.graphKind='process';S.graphProcessId=x.dataset.processGraph;S.graphLayout='lr';S.graphMode='visual';S.view='graph';S.mobilePanel='detail';renderAll()});root.querySelectorAll('[data-decision-graph]').forEach(x=>x.onclick=()=>{S.graphKind='process';S.graphProcessId=x.dataset.processId;S.graphDecisionId=x.dataset.decisionGraph;S.graphLayout='branches';S.graphMode='visual';S.view='graph';S.mobilePanel='detail';renderAll()});}
 function extensionFaqButtons(ids){return (ids||[]).filter(id=>faqMap.has(id)).map(id=>'<button type="button" class="ext-ref" data-faq="'+esc(id)+'">'+esc(id)+' · '+esc(faqMap.get(id).question)+'</button>').join('')||'<p class="ext-muted">Noch kein direkt zugeordneter FAQ-Beleg.</p>'}
 function renderExtensionView(){
  document.body.classList.add('ext-view');$('faqFilterPanel').hidden=true;$('menuFilters').hidden=S.view!=='menus';
  const lst=$('resultList'),mid=$('detail'),aside=$('asideBody'),men=S.view==='menus',data=menuData;
  $('leftTitle').textContent=men?'Menüpunkte':'Teilprozesse';$('leftIntro').textContent=men?'Quellcode-Katalog · kein Live-Menü':'Fachlich verknüpfte Ablaufentwürfe';
  lst.replaceChildren();
- if(!data){$('matchCount').textContent='0 Treffer';mid.innerHTML='<div class="empty"><h2>Menü-/Prozessdaten lokal importieren</h2><p>Dieser Bereich benötigt das private V023-Erweiterungsregister oder das V023-Komplettpaket. Die öffentliche PWA enthält bewusst keine internen Daten.</p><button class="btn primary" id="extQuickImport">Register importieren</button></div>';let btn=$('extQuickImport');btn.onclick=()=>$('fileExtension').click();aside.innerHTML='<div class="aside-card">Interne Wissensdaten werden ausschließlich lokal verarbeitet.</div>';$('statusResult').textContent='Keine Erweiterung';return;}
+ if(!data){$('matchCount').textContent='0 Treffer';mid.innerHTML='<div class="empty"><h2>Menü-/Prozessdaten lokal importieren</h2><p>Dieser Bereich benötigt ein privates Menü-/Prozessregister oder ein kompatibles Komplettpaket. Die öffentliche PWA enthält bewusst keine internen Daten.</p><button class="btn primary" id="extQuickImport">Register importieren</button></div>';let btn=$('extQuickImport');btn.onclick=()=>$('fileExtension').click();aside.innerHTML='<div class="aside-card">Interne Wissensdaten werden ausschließlich lokal verarbeitet.</div>';$('statusResult').textContent='Keine Erweiterung';return;}
  if(men){const select=$('menuGroup');const groups=[...new Set(data.menus.map(a=>a.groupStatic||'Ohne Gruppe'))].sort((a,b)=>a.localeCompare(b,'de'));if(select.options.length!==groups.length+1){select.replaceChildren();for(const [v,t] of [['all','Alle Gruppen'],...groups.map(g=>[g,g])]){const opt=document.createElement('option');opt.value=v;opt.textContent=t;select.appendChild(opt)}}select.value=S.menuGroup;if(select.value!==S.menuGroup){S.menuGroup='all';select.value='all'}}
  const list=men?data.menus.filter(menuMatch):data.processes.filter(processMatch);S.filtered=list;
  $('matchCount').textContent=list.length+' / '+(men?data.menus.length:data.processes.length)+' '+(men?'Menüaktionen':'Prozesse');$('statusInfo').textContent=faqMap.size+' FAQs · '+data.menus.length+' Menü-Kandidaten · '+data.processes.length+' Teilprozess-Entwürfe';$('statusResult').textContent=list.length+' Treffer';
@@ -443,6 +492,7 @@ function renderProcessDetail(p,mid,aside){
  '<div class="scroll"><div class="article ext-article"><div class="callout">Die Schritte wurden redaktionell aus PMI und Codebelegen verknüpft. Sie sind kein getestetes Tutorial und lösen keine ERP-Aktion aus.</div>'+
  '<section><div class="section-kicker">Auslöser und Voraussetzungen</div><p><b>Auslöser:</b> '+esc(p.trigger||'nicht erfasst')+'</p><ul>'+(p.preconditions||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></section>'+
  '<section><button class="ext-ref" data-process-graph="'+esc(p.processId)+'">◎ Prozess grafisch anzeigen</button></section><section><div class="section-kicker">Schrittfolge · '+steps.length+'</div><ol class="ext-steps">'+steps.map(s=>'<li data-process-step="'+esc(s.stepId)+'"><h3>'+esc(s.title)+'</h3><p class="ext-muted">'+esc(s.evidenceStrength||'Belegstatus offen')+'</p><div class="ext-links">'+(s.menuActionKeys||[]).map(k=>{let a=menuData.menus.find(m=>m.actionKey===k);return a?'<button class="ext-ref" data-menu="'+esc(k)+'">Menü: '+esc(a.labelStatic)+'</button>':''}).join('')+extensionFaqButtons(s.faqRefs)+'</div>'+(s.mappingStatusV020?'<p class="ext-muted">'+esc(s.mappingStatusV020)+'</p>':'')+'</li>').join('')+'</ol></section>'+
+ '<section><div class="section-kicker">Prüfpfade im Entscheidungsgraphen</div>'+(p.processDepthV026?.decisionNodes?.length?'<p>Redaktionelle Bedingungs- und Zielpfadverweise, keine End-to-End-Ausführung.</p>'+p.processDepthV026.decisionNodes.map(d=>'<button type="button" class="ext-ref" data-decision-graph="'+esc(d.decisionId)+'" data-process-id="'+esc(p.processId)+'">◇ '+esc(d.title)+' · '+d.paths.length+' Varianten</button>').join(''):'<p class="ext-muted">Noch keine einzeln belegten Prüfpfade.</p>')+'</section>'+
  '<section><div class="section-kicker">Entscheidungen und Sonderfälle</div><p><b>Beteiligte Rollen (redaktionell):</b> '+esc((p.roles||[]).join(' · ')||'offen')+'</p><ul>'+(p.decisions||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul><p><b>Fehler- und Sonderfälle:</b></p><ul>'+(p.failureScenarios||[]).map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></section>'+
  '<section><div class="section-kicker">Ergebnis und Prüfgrenzen</div><p>'+esc(p.result||p.expectedResult||p.outcome||'Ergebnis im Pilot fachlich noch zu verifizieren.')+'</p><p>Produktive Berechtigungs-, Rückmelde- und Schreibtests sind separat erforderlich.</p></section></div></div>';
  let faqCount=[...new Set(steps.flatMap(s=>s.faqRefs||[]))].length,actCount=[...new Set(steps.flatMap(s=>s.menuActionKeys||[]))].length;
@@ -461,7 +511,7 @@ function importFile(file){if(!file)return;
    validateViewerBundleStrict(b);prepare(b);pwaShowWelcome(false);void pwaStoreBundle(b);syncPending=null;toast('Vollständiges Viewer-Datenpaket geladen: '+file.name);
   }else if(b?.meta?.workingSource?.schemaVersion==='vv4.annotation-working-source.v1'){
    beginEditorSync(b,file.name);
-  }else throw Error('Unbekanntes JSON: benötigt Viewer-Bundle, V023-Komplettpaket, V023-Erweiterung oder VV4-Working-Source.');
+  }else throw Error('Unbekanntes JSON: benötigt Viewer-Bundle, kompatibles Komplettpaket, Erweiterung oder VV4-Working-Source.');
  }catch(e){bundleError('Import abgelehnt: '+e.message)}};r.readAsText(file,'utf-8')}
 
 function updateNavScroll(){const n=$('mainNavigation');if(!n)return;const back=document.querySelector('.nav-prev'),next=document.querySelector('.nav-next');if(back)back.disabled=n.scrollLeft<=3;if(next)next.disabled=n.scrollLeft+n.clientWidth>=n.scrollWidth-3;}
