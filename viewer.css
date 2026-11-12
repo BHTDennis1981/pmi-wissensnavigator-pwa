@@ -180,3 +180,11 @@
 .semantic-legend .sem-gate{background:#fff1d9;border-color:#c48b3a}.semantic-legend .sem-axis{background:#dff1fc;border-color:#488fb4}.semantic-legend .sem-choice{background:#e1f5ec;border-color:#419477}.semantic-legend .sem-priority{background:#efebfc;border-color:#8a73c1}
 .semantic-legend small{flex-basis:100%;color:#58727e;font-size:10px}
 @media(max-width:719px){.brand{align-items:flex-start}.brand .version-line{font-size:10px;gap:4px}#dataVersionBadge{font-size:10px}.semantic-legend{gap:6px;padding:6px 9px;font-size:10px}.semantic-legend i{width:10px;height:10px}}
+
+/* V031: mobile-first Gesamtablauf → Teilprozess navigation */
+.process-levels{display:flex;flex-wrap:wrap;gap:6px;padding:9px 12px;border-bottom:1px solid #dbe8e9;background:#f3f8f9}
+.process-level-button{flex:1 1 120px;border:1px solid #c8dadd;background:#fff;border-radius:8px;min-height:40px;font-size:12px;font-weight:750;color:#3c6570;padding:8px}
+.process-level-button.active{color:#0b6570;background:#dff1ef;border-color:#64b2af}
+.family-connection{border-left:3px dashed #80a8b1;padding:7px 10px;margin:6px 0;background:#f6f9fa;font-size:12px;overflow-wrap:anywhere}
+.family-connection small{display:block;color:#667b82;margin-top:4px}
+@media(max-width:719px){.process-levels{padding:6px 8px}.process-level-button{font-size:11px;min-height:42px}}
